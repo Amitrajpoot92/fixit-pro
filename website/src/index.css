@@ -1,0 +1,21 @@
+/* src/index.css */
+
+/* 🚀 1. Google Fonts Import MUST be at the absolute top */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+
+/* 🚀 2. Tailwind Import comes after external URLs */
+@import "tailwindcss";
+
+/* 🚀 3. Apply font globally via Tailwind theme */
+@theme {
+  --font-sans: 'Poppins', sans-serif;
+}
+
+/* 🚀 4. Default styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+}
