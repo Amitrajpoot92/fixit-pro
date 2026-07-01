@@ -128,11 +128,11 @@ export default function Hero() {
                 {/* Notch */}
                 <div className="w-24 md:w-32 h-5 md:h-7 bg-slate-950 absolute top-0 left-1/2 -translate-x-1/2 rounded-b-xl md:rounded-b-2xl z-20"></div>
 
+                {/* 🚀 FIX: Removed resizeMode completely from the img tag */}
                 <img 
                     src={appScreenshot} 
                     alt="FixitPro App" 
                     className="w-full h-full object-cover rounded-[2rem] md:rounded-[3rem]"
-                    resizeMode="cover"
                 />
                 
                 {/* Subtle Edge Sheen */}

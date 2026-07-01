@@ -1,6 +1,8 @@
 // src/components/home/Footer.jsx
 import React from 'react';
 import { Mail, Globe, MessageSquare, ArrowUpRight, Lock, Wrench, ShieldCheck } from 'lucide-react';
+// 🚀 ADDED: React Router DOM se Link import kiya gaya hai
+import { Link } from 'react-router-dom'; 
 
 export default function Footer() {
   return (
@@ -38,7 +40,7 @@ export default function Footer() {
             </div>
           </div>
           
-          {/* 🔗 Links Columns Wrapper (FIX: Now uses grid-cols-2 on mobile to save vertical space) */}
+          {/* 🔗 Links Columns Wrapper */}
           <div className="md:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-6 lg:gap-8">
             
             {/* Quick Links */}
@@ -75,19 +77,21 @@ export default function Footer() {
               <ul className="space-y-2 w-full max-w-[200px]">
                 
                 <li>
-                  <a href="/admin" className="group flex items-center gap-2 p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-300">
+                  {/* 🚀 CHANGED: Normal <a> tag ki jagah React Router ka <Link> use kiya hai */}
+                  <Link to="/admin" className="group flex items-center gap-2 p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-300">
                      <Lock className="w-3.5 h-3.5 text-purple-400" />
                      <span className="text-slate-300 text-xs font-bold group-hover:text-white transition-colors">Admin Portal</span>
                      <ArrowUpRight className="w-3 h-3 text-slate-500 group-hover:text-white ml-auto transition-colors" />
-                  </a>
+                  </Link>
                 </li>
                 
                 <li>
-                  <a href="/technician" className="group flex items-center gap-2 p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-300">
+                  {/* 🚀 CHANGED: Normal <a> tag ki jagah React Router ka <Link> use kiya hai */}
+                  <Link to="/technician" className="group flex items-center gap-2 p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-300">
                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                      <span className="text-slate-300 text-xs font-bold group-hover:text-white transition-colors">Tech Portal</span>
                      <ArrowUpRight className="w-3 h-3 text-slate-500 group-hover:text-white ml-auto transition-colors" />
-                  </a>
+                  </Link>
                 </li>
 
               </ul>
