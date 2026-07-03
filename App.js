@@ -1,11 +1,15 @@
 // App.js 
 import 'react-native-gesture-handler'; // 🚀 CRITICAL FIX: Ye LINE 1 par hi hona chahiye!
 import React from 'react';
-import { Platform, LogBox } from 'react-native'; // 🚀 ADDED: Platform aur LogBox import
-import { SafeAreaProvider } from 'react-native-safe-area-context'; // 🚀 CRITICAL FIX: For Android Notches
+import { Platform, LogBox } from 'react-native'; 
+import { SafeAreaProvider } from 'react-native-safe-area-context'; 
 import { NavigationContainer } from '@react-navigation/native';
-import AppNavigator from './src/navigation/AppNavigator';
+
+// 🧠 Contexts Import
+import { AuthProvider } from './src/context/AuthContext';
 import { TabVisibilityProvider } from './src/context/TabVisibilityContext';
+
+import AppNavigator from './src/navigation/AppNavigator';
 
 // 🚀 1. Mobile screen ki warnings chup karne ke liye
 LogBox.ignoreLogs([
@@ -28,17 +32,21 @@ if (Platform.OS === 'web') {
 }
 
 export default function App() {
-  // Abhi test karne ke liye user ko 'true' (logged in) set kiya hai
-  const user = true;
+  // 🚀 Hardcoded user = true hata diya gaya hai.
+  // Ab Firebase aur AuthContext khud decide karenge ki user login hai ya nahi.
 
   return (
     // 🚀 SafeAreaProvider se wrap karna bohot zaroori hai native app ke liye
     <SafeAreaProvider> 
-      <TabVisibilityProvider>
-        <NavigationContainer>
-          <AppNavigator user={user} />
-        </NavigationContainer>
-      </TabVisibilityProvider>
+      {/* 🧠 App ka Dimaag (Auth) sabse upar laga diya */}
+      <AuthProvider>
+        <TabVisibilityProvider>
+          <NavigationContainer>
+            {/* 🚀 AppNavigator ko ab alag se user pass karne ki zaroorat nahi */}
+            <AppNavigator />
+          </NavigationContainer>
+        </TabVisibilityProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

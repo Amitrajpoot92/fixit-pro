@@ -3,14 +3,19 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { useNavigation } from '@react-navigation/native';
 
-export default function OrderSuccessScreen() {
-  const navigation = useNavigation();
+export default function OrderSuccessScreen({ navigation, route }) {
+  // 🚀 Pichli screen se aayi hui dynamic Order ID (fallback fallback ke sath)
+  const orderId = route.params?.orderId || 'ORD-000000';
+
+  // 🗓️ Kal ki date nikalne ka dynamic logic
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dateString = tomorrow.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFF" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFF" translucent={false} />
       
       <View style={styles.content}>
         {/* SUCCESS ICON */}
@@ -20,27 +25,28 @@ export default function OrderSuccessScreen() {
         
         <Text style={styles.title}>Booking Confirmed!</Text>
         <Text style={styles.desc}>
-          Your repair request #ORD-9823 has been placed successfully. 
+          Your repair request <Text style={{fontWeight: '800', color: '#0F172A'}}>#{orderId}</Text> has been placed successfully. 
           Our technician will contact you shortly.
         </Text>
         
         <View style={styles.infoBox}>
           <View style={styles.infoRow}>
             <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-            <Text style={styles.infoText}>Tomorrow, 18 Jun | 10:00 AM</Text>
+            <Text style={styles.infoText}>Tomorrow, {dateString} | 10:00 AM</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="location-outline" size={18} color={colors.primary} />
-            <Text style={styles.infoText}>Home (Sector 45, Gurgaon)</Text>
+            {/* Note: Aage chalkar ise bhi user ke selected address se replace kar lenge */}
+            <Text style={styles.infoText}>Home (Saved Address)</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.footer}>
-        {/* 🚀 FIXED: use replace to avoid navigation stack issues */}
+        {/* 🚀 FIXED: use replace aur sath mein orderId pass kar diya */}
         <TouchableOpacity 
           style={styles.trackBtn} 
-          onPress={() => navigation.replace('OrderTracking')} 
+          onPress={() => navigation.replace('OrderTracking', { orderId: orderId })} 
         >
           <Text style={styles.trackBtnText}>Track My Order</Text>
         </TouchableOpacity>

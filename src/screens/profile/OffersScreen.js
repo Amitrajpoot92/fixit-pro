@@ -1,19 +1,52 @@
 // src/screens/profile/OffersScreen.js
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, FlatList, Platform, StatusBar } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { colors } from '../../theme/colors';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  SafeAreaView, 
+  TouchableOpacity, 
+  FlatList, 
+  Platform, 
+  StatusBar,
+  ActivityIndicator,
+  Alert
+} from 'react-native';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+import { collection, query, onSnapshot } from 'firebase/firestore';
+import * as Clipboard from 'expo-clipboard'; // 🚀 Copy code feature
 
-const offers = [
-  { id: '1', title: 'FLAT 20% OFF', desc: 'On all Apple device repairs', code: 'FIXIT20' },
-  { id: '2', title: 'FREE PICKUP', desc: 'Valid for first 2 bookings', code: 'FREEPICK' },
-  { id: '3', title: '₹100 OFF', desc: 'On motherboard repairs', code: 'MOB100' },
-];
+import { colors } from '../../theme/colors';
+import { db } from '../../services/firebaseConfig';
 
 export default function OffersScreen({ navigation }) {
+  const [offers, setOffers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // 🚀 Real-time fetch offers from Global 'offers' collection
+  useEffect(() => {
+    const q = query(collection(db, 'offers'));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedOffers = [];
+      snapshot.forEach((doc) => {
+        fetchedOffers.push({ id: doc.id, ...doc.data() });
+      });
+      setOffers(fetchedOffers);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // 🚀 Copy Code to Clipboard function
+  const handleCopyCode = async (code) => {
+    await Clipboard.setStringAsync(code);
+    Alert.alert("Code Copied!", `Promo code '${code}' copied to clipboard. Paste it during checkout.`);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* 🚀 StatusBar added for clean UI on Android */}
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
       
       <View style={styles.header}>
@@ -24,28 +57,43 @@ export default function OffersScreen({ navigation }) {
         <View style={{width: 24}} />
       </View>
 
-      <FlatList 
-        data={offers}
-        contentContainerStyle={{padding: 20}}
-        keyExtractor={(item) => item.id}
-        renderItem={({item}) => (
-          <View style={styles.offerCard}>
-            <View>
-              <Text style={styles.offerTitle}>{item.title}</Text>
-              <Text style={styles.offerDesc}>{item.desc}</Text>
+      {loading ? (
+        <View style={styles.centerView}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : offers.length === 0 ? (
+        <View style={styles.centerView}>
+          <FontAwesome5 name="ticket-alt" size={50} color="#CBD5E1" />
+          <Text style={styles.emptyText}>No active offers right now.</Text>
+          <Text style={styles.emptySubText}>Check back later for exciting discounts!</Text>
+        </View>
+      ) : (
+        <FlatList 
+          data={offers}
+          contentContainerStyle={{padding: 20}}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          renderItem={({item}) => (
+            <View style={styles.offerCard}>
+              <View style={{flex: 1, paddingRight: 10}}>
+                <Text style={styles.offerTitle}>{item.title}</Text>
+                <Text style={styles.offerDesc}>{item.desc}</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.codeBtn} 
+                onPress={() => handleCopyCode(item.code)}
+              >
+                <Text style={styles.codeText}>{item.code}</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.codeBtn}>
-              <Text style={styles.codeText}>{item.code}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
+          )}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  // 🚀 FIX: Added paddingTop for Android Status Bar height
   container: { 
     flex: 1, 
     backgroundColor: '#F8FAFC',
@@ -53,9 +101,12 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: 'row', padding: 20, alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 18, fontWeight: '800' },
+  centerView: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  emptyText: { fontSize: 16, fontWeight: 'bold', color: '#475569', marginTop: 15 },
+  emptySubText: { fontSize: 13, color: '#94A3B8', marginTop: 5 },
   offerCard: { backgroundColor: '#FFF', padding: 20, borderRadius: 16, marginBottom: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
   offerTitle: { fontSize: 16, fontWeight: '900', color: colors.primary },
-  offerDesc: { fontSize: 13, color: '#64748B', marginTop: 4 },
-  codeBtn: { backgroundColor: '#EFF6FF', padding: 10, borderRadius: 8, borderStyle: 'dashed', borderWidth: 1, borderColor: colors.primary },
-  codeText: { fontWeight: '800', color: colors.primary }
+  offerDesc: { fontSize: 13, color: '#64748B', marginTop: 4, lineHeight: 18 },
+  codeBtn: { backgroundColor: '#EFF6FF', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 8, borderStyle: 'dashed', borderWidth: 1.5, borderColor: colors.primary },
+  codeText: { fontWeight: '800', color: colors.primary, fontSize: 14, letterSpacing: 1 }
 });

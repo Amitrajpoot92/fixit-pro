@@ -1,12 +1,25 @@
 // src/screens/Booking/PaymentSelectionScreen.js
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
+import { 
+  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
+  ScrollView, StatusBar, Platform, ActivityIndicator, Alert 
+} from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
+// 🚀 Firebase & App Imports
+import { db, auth } from '../../services/firebaseConfig';
 import { colors } from '../../theme/colors';
 
 export default function PaymentSelectionScreen({ navigation, route }) {
   const [method, setMethod] = useState('upi');
-  const amount = 4999; // Ye data pichle screen se bhi le sakte ho
+  const [loading, setLoading] = useState(false);
+
+  // 🚀 Pichli screen se aane wala data (fallback 0 agar test kar rahe ho)
+  const amount = route.params?.totalAmount || 0; 
+  const brandName = route.params?.brandName || 'Unknown Brand';
+  const modelName = route.params?.modelName || 'Unknown Model';
+  const selectedServices = route.params?.selectedServices || [];
 
   const paymentOptions = [
     { id: 'upi', name: 'UPI (GPay, PhonePe, Paytm)', icon: 'account-balance', desc: 'Pay instantly via your favorite UPI app' },
@@ -14,29 +27,80 @@ export default function PaymentSelectionScreen({ navigation, route }) {
     { id: 'cod', name: 'Cash on Delivery (COD)', icon: 'payments', desc: 'Pay technician after repair' },
   ];
 
+  // 🚀 ORDER CREATE KARNE KA LOGIC
+  const handlePayment = async () => {
+    const userId = auth.currentUser?.uid;
+    
+    if (!userId) {
+      Alert.alert("Login Required", "Please login to complete your booking.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // 1. Generate unique Order ID
+      const orderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      // 2. Prepare Order Data
+      const orderData = {
+        orderId,
+        userId,
+        brandName,
+        modelName,
+        services: selectedServices,
+        totalAmount: amount,
+        paymentMethod: method,
+        paymentStatus: method === 'cod' ? 'Pending' : 'Paid', // Dummy logic for UPI/Card success
+        status: 'Order Placed', // Order Status lifecycle
+        createdAt: serverTimestamp(),
+      };
+
+      // 3. Save to Firestore
+      await addDoc(collection(db, 'bookings'), orderData);
+
+      setLoading(false);
+      
+      // 4. Navigate to Success Screen
+      navigation.navigate('OrderSuccess', { orderId });
+
+    } catch (error) {
+      console.error("Booking Error: ", error);
+      Alert.alert("Error", "Could not process your booking. Please try again.");
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
+      
+      {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} disabled={loading}>
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Payment Method</Text>
         <View style={{width: 44}} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20 }}>
+      <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+        {/* AMOUNT CARD */}
         <View style={styles.amountCard}>
           <Text style={styles.amountLabel}>Amount to Pay</Text>
           <Text style={styles.amountValue}>₹{amount}</Text>
         </View>
 
         <Text style={styles.sectionTitle}>Select Method</Text>
+        
+        {/* PAYMENT OPTIONS */}
         {paymentOptions.map((opt) => (
           <TouchableOpacity 
             key={opt.id} 
             style={[styles.optionCard, method === opt.id && styles.activeOption]}
             onPress={() => setMethod(opt.id)}
+            activeOpacity={0.8}
+            disabled={loading}
           >
             <View style={styles.iconCircle}>
               <MaterialIcons name={opt.icon} size={24} color={method === opt.id ? colors.primary : '#64748B'} />
@@ -54,10 +118,23 @@ export default function PaymentSelectionScreen({ navigation, route }) {
         ))}
       </ScrollView>
 
+      {/* BOTTOM ACTION BAR */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.payBtn} onPress={() => navigation.navigate('OrderSuccess')}>
-          <Text style={styles.btnText}>{method === 'cod' ? 'Confirm Order' : 'Pay Now'}</Text>
-          <MaterialIcons name="chevron-right" size={20} color="#FFF" />
+        <TouchableOpacity 
+          style={[styles.payBtn, loading && { opacity: 0.7 }]} 
+          onPress={handlePayment}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <>
+              <Text style={styles.btnText}>
+                {method === 'cod' ? 'Confirm Order' : `Pay ₹${amount}`}
+              </Text>
+              <MaterialIcons name="chevron-right" size={22} color="#FFF" />
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -65,20 +142,23 @@ export default function PaymentSelectionScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: '#F8FAFC', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
   backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
   headerTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
-  amountCard: { backgroundColor: colors.primary, padding: 30, borderRadius: 24, alignItems: 'center', marginBottom: 30 },
+  
+  amountCard: { backgroundColor: '#2563EB', padding: 30, borderRadius: 24, alignItems: 'center', marginBottom: 30, ...Platform.select({ ios: { shadowColor: '#2563EB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 12 }, android: { elevation: 8 } }) },
   amountLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: '600' },
   amountValue: { color: '#FFF', fontSize: 36, fontWeight: '900', marginTop: 5 },
+  
   sectionTitle: { fontSize: 16, fontWeight: '800', color: '#475569', marginBottom: 15 },
-  optionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 18, borderRadius: 20, marginBottom: 15, borderWidth: 1, borderColor: '#E2E8F0' },
-  activeOption: { borderColor: colors.primary, backgroundColor: '#F0F7FF' },
+  optionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 18, borderRadius: 20, marginBottom: 15, borderWidth: 1.5, borderColor: '#E2E8F0' },
+  activeOption: { borderColor: '#2563EB', backgroundColor: '#EFF6FF' },
   iconCircle: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
   optionName: { fontSize: 15, fontWeight: '800', color: '#0F172A' },
   optionDesc: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
-  bottomBar: { padding: 20, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#E2E8F0' },
-  payBtn: { flexDirection: 'row', backgroundColor: '#2563EB', padding: 18, borderRadius: 16, justifyContent: 'center', alignItems: 'center', gap: 10 },
+  
+  bottomBar: { padding: 20, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#E2E8F0', paddingBottom: Platform.OS === 'ios' ? 30 : 20 },
+  payBtn: { flexDirection: 'row', backgroundColor: '#2563EB', paddingVertical: 16, borderRadius: 16, justifyContent: 'center', alignItems: 'center', gap: 5 },
   btnText: { color: '#FFF', fontSize: 16, fontWeight: '800' }
 });

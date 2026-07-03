@@ -1,7 +1,13 @@
 // src/navigation/AppNavigator.js
 import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 
+// 🧠 Auth Context Import
+import { useAuth } from '../context/AuthContext';
+import { colors } from '../theme/colors';
+
+// Screens
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import BottomTabNavigator from './BottomTabNavigator'; 
@@ -16,7 +22,8 @@ import OrderTrackingScreen from '../screens/Booking/OrderTrackingScreen';
 // 🚀 Profile Module Imports
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import AddressScreen from '../screens/profile/AddressScreen';
-import PaymentMethodsScreen from '../screens/profile/PaymentMethodsScreen';
+// 🔄 Updated: PaymentMethods replaced with ReferAndEarn
+import ReferAndEarnScreen from '../screens/profile/ReferAndEarnScreen';
 import OffersScreen from '../screens/profile/OffersScreen';
 import SupportScreen from '../screens/profile/SupportScreen';
 import SettingsScreen from '../screens/profile/SettingsScreen';
@@ -26,37 +33,51 @@ import WalletScreen from '../screens/wallet/WalletScreen';
 
 const Stack = createStackNavigator();
 
-export default function AppNavigator({ user }) {
-  return (
-    <Stack.Navigator key={user ? 'user' : 'guest'} screenOptions={{ headerShown: false }}>
-      {!user ? (
-        <>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-        </>
-      ) : (
-        <>
-          <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
-          <Stack.Screen name="DeviceSelection" component={DeviceSelectionScreen} />
-          <Stack.Screen name="ModelSelection" component={ModelSelectionScreen} />
-          <Stack.Screen name="ServiceSelection" component={ServiceSelectionScreen} />
-          <Stack.Screen name="Checkout" component={CheckoutScreen} />
-          <Stack.Screen name="PaymentSelection" component={PaymentSelectionScreen} />
-          <Stack.Screen name="OrderSuccess" component={OrderSuccessScreen} />
-          <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
-          
-          {/* 🚀 Profile Screens Registered */}
-          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-          <Stack.Screen name="Address" component={AddressScreen} />
-          <Stack.Screen name="Payments" component={PaymentMethodsScreen} />
-          <Stack.Screen name="Offers" component={OffersScreen} />
-          <Stack.Screen name="Support" component={SupportScreen} />
-          <Stack.Screen name="Settings" component={SettingsScreen} />
+export default function AppNavigator() {
+  // 🧠 Context se loading state nikaal li (user nikaalne ki yahan zaroorat nahi kyunki sab open hai)
+  const { loading } = useAuth();
 
-          {/* 🚀 Wallet Screen Registered */}
-          <Stack.Screen name="Wallet" component={WalletScreen} />
-        </>
-      )}
+  // Jab tak Firebase check kar raha hai ki user login hai ya nahi, tab tak loader dikhao
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  return (
+    // 🚀 initialRouteName "MainTabs" set kiya taaki app khulte hi seedha Home dikhe
+    <Stack.Navigator initialRouteName="MainTabs" screenOptions={{ headerShown: false }}>
+      
+      {/* 🌍 Core Application (Explore First) */}
+      <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
+      
+      {/* 🔐 Authentication Screens (Jab zarurat ho tab yahan bhejenge) */}
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Register" component={RegisterScreen} />
+
+      {/* 🛠️ Booking Flow Screens */}
+      <Stack.Screen name="DeviceSelection" component={DeviceSelectionScreen} />
+      <Stack.Screen name="ModelSelection" component={ModelSelectionScreen} />
+      <Stack.Screen name="ServiceSelection" component={ServiceSelectionScreen} />
+      <Stack.Screen name="Checkout" component={CheckoutScreen} />
+      <Stack.Screen name="PaymentSelection" component={PaymentSelectionScreen} />
+      <Stack.Screen name="OrderSuccess" component={OrderSuccessScreen} />
+      <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
+      
+      {/* 🚀 Profile Screens */}
+      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="Address" component={AddressScreen} />
+      {/* 🔄 Updated Route Name */}
+      <Stack.Screen name="ReferEarn" component={ReferAndEarnScreen} />
+      <Stack.Screen name="Offers" component={OffersScreen} />
+      <Stack.Screen name="Support" component={SupportScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+
+      {/* 🚀 Wallet Screen */}
+      <Stack.Screen name="Wallet" component={WalletScreen} />
+
     </Stack.Navigator>
   );
 }

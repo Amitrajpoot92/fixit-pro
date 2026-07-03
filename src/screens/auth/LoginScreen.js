@@ -14,8 +14,10 @@ import {
   ScrollView
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons'; 
-import { auth } from '../../services/firebaseConfig';
+import { auth, db } from '../../services/firebaseConfig';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { colors } from '../../theme/colors'; 
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -24,17 +26,35 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
+    // 🧹 Clean inputs before processing
+    const cleanEmail = email.trim();
+    
+    if (!cleanEmail || !password) {
       alert("Please enter both email and password");
       return;
     }
+    
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      // 1. Firebase Auth se login karo
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      
       setLoading(false);
+      
+      // 🚀 YAHAN HAI FIX: Login hone ke baad wapas pichli screen par bhejo!
+      if (navigation.canGoBack()) {
+        navigation.goBack(); // Profile se aaya tha toh wapas profile par
+      } else {
+        navigation.navigate('MainTabs'); // Safe side ke liye
+      }
+
     } catch (error) {
       setLoading(false);
-      alert("Login failed. Please check your credentials.");
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+        alert("Invalid Email or Password.");
+      } else {
+        alert("Login failed. Please try again.");
+      }
     }
   };
 
@@ -52,6 +72,8 @@ export default function LoginScreen({ navigation }) {
               style={styles.heroImage}
               resizeMode="contain"
             />
+            <Text style={styles.welcomeText}>Welcome Back!</Text>
+            <Text style={styles.subtitleText}>Login to book your service</Text>
           </View>
 
           <View style={styles.bottomSheet}>
@@ -61,7 +83,7 @@ export default function LoginScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 placeholder="test@gmail.com"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textLight}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -72,19 +94,19 @@ export default function LoginScreen({ navigation }) {
               <View style={styles.passwordContainer}>
                 <TextInput
                   style={styles.passwordInput}
-                  placeholder="@admin123"
-                  placeholderTextColor="#9CA3AF"
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.textLight}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.iconContainer}>
-                  <MaterialIcons name={showPassword ? 'visibility' : 'visibility-off'} size={22} color="#9CA3AF" />
+                  <MaterialIcons name={showPassword ? 'visibility' : 'visibility-off'} size={22} color={colors.textLight} />
                 </TouchableOpacity>
               </View>
 
               <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
-                {loading ? <ActivityIndicator color="#000000" /> : <Text style={styles.loginButtonText}>Login</Text>}
+                {loading ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.loginButtonText}>Login Securely</Text>}
               </TouchableOpacity>
 
               <View style={styles.signupContainer}>
@@ -103,7 +125,7 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F3F4F6' },
+  safeArea: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1 },
   abstractCurve: {
     position: 'absolute',
@@ -112,47 +134,43 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: '#FFB800',
+    backgroundColor: colors.accent,
     opacity: 0.15,
   },
   scrollContainer: { flexGrow: 1, justifyContent: 'space-between' },
-  graphicContainer: { alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingBottom: 20 },
-  heroImage: { width: 220, height: 220, borderRadius: 110, borderWidth: 3, borderColor: '#fff' },
+  graphicContainer: { alignItems: 'center', justifyContent: 'center', paddingTop: 50, paddingBottom: 20 },
+  heroImage: { width: 140, height: 140, borderRadius: 70, borderWidth: 3, borderColor: '#fff', marginBottom: 15 },
+  welcomeText: { fontSize: 28, fontWeight: '900', color: colors.primary, marginBottom: 4 },
+  subtitleText: { fontSize: 14, color: colors.textDark, fontWeight: '500' },
   bottomSheet: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     paddingHorizontal: 28,
     paddingTop: 40,
     paddingBottom: 50,
-    // 🚀 FIX: shadow props ko hata kar Platform select use kiya
     ...Platform.select({
       ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -5 }, shadowOpacity: 0.05, shadowRadius: 15 },
       android: { elevation: 10 },
       web: { boxShadow: '0px -5px 15px rgba(0, 0, 0, 0.05)' }
     })
   },
-  label: { fontSize: 13, color: '#111827', marginBottom: 8, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8, marginLeft: 4 },
-  input: { backgroundColor: '#F9FAFB', borderRadius: 16, paddingVertical: 18, paddingHorizontal: 20, marginBottom: 24, color: '#111827', fontSize: 16, fontWeight: '600' },
+  label: { fontSize: 13, color: colors.textDark, marginBottom: 8, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8, marginLeft: 4 },
+  input: { backgroundColor: colors.inputBg, borderRadius: 16, paddingVertical: 18, paddingHorizontal: 20, marginBottom: 20, color: colors.textDark, fontSize: 16, fontWeight: '600' },
   passwordContainer: { 
-    backgroundColor: '#F9FAFB', 
+    backgroundColor: colors.inputBg, 
     borderRadius: 16, 
     flexDirection: 'row', 
     alignItems: 'center', 
     paddingHorizontal: 20, 
-    marginBottom: 24 
+    marginBottom: 24,
+    height: 60
   },
-  passwordInput: { 
-    flex: 1, 
-    paddingVertical: 18, 
-    color: '#111827', 
-    fontSize: 16, 
-    fontWeight: '600' 
-  },
-  iconContainer: { padding: 5 },
-  loginButton: { backgroundColor: '#FFB800', borderRadius: 16, paddingVertical: 18, alignItems: 'center', marginTop: 8, justifyContent: 'center', elevation: 5 },
-  loginButtonText: { color: '#000000', fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
+  passwordInput: { flex: 1, height: '100%', color: colors.textDark, fontSize: 16, fontWeight: '600' },
+  iconContainer: { padding: 5, marginLeft: 10 },
+  loginButton: { backgroundColor: colors.accent, borderRadius: 16, paddingVertical: 18, alignItems: 'center', marginTop: 10, justifyContent: 'center', elevation: 5 },
+  loginButtonText: { color: colors.primary, fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
   signupContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 30 },
-  signupText: { color: '#6B7280', fontSize: 15, fontWeight: '500' },
-  signupLink: { color: '#111827', fontSize: 15, fontWeight: '800', marginLeft: 4 }
+  signupText: { color: colors.textLight, fontSize: 15, fontWeight: '500' },
+  signupLink: { color: colors.textDark, fontSize: 15, fontWeight: '800', marginLeft: 4 }
 });

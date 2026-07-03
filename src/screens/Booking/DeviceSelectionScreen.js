@@ -1,56 +1,70 @@
 // src/screens/Booking/DeviceSelectionScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
-  Platform, StatusBar, ScrollView, TextInput, Dimensions 
+  Platform, StatusBar, ScrollView, TextInput, Dimensions,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+
+// 🚀 Database Import
+import { db } from '../../services/firebaseConfig';
 
 const { width } = Dimensions.get('window');
 
-// 🌟 Premium Soft Shadows (🚀 FIX: Web fallback added)
+// 🌟 Premium Soft Shadows
 const shadowStyle = Platform.select({
   ios: { shadowColor: '#94A3B8', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 12 },
   android: { elevation: 5, shadowColor: '#94A3B8' },
   web: { boxShadow: '0px 6px 12px rgba(148, 163, 184, 0.12)' }
 });
 
-// 📱 MOCK DATA - Brands
-const mobileBrands = [
-  { id: '1', name: 'Apple', icon: 'logo-apple', color: '#000000', bg: '#F1F5F9' },
-  { id: '2', name: 'Samsung', textIcon: 'S', color: '#1428A0', bg: '#EFF6FF' },
-  { id: '3', name: 'OnePlus', textIcon: '1+', color: '#E50010', bg: '#FEF2F2' },
-  { id: '4', name: 'Xiaomi', textIcon: 'Mi', color: '#FF6700', bg: '#FFF7ED' },
-  { id: '5', name: 'Google', icon: 'logo-google', color: '#EA4335', bg: '#FEF2F2' },
-  { id: '6', name: 'Vivo', textIcon: 'V', color: '#415FFF', bg: '#EEF2FF' },
-  { id: '7', name: 'Oppo', textIcon: 'O', color: '#007A5E', bg: '#ECFDF5' },
-  { id: '8', name: 'Realme', textIcon: 'R', color: '#FFC915', bg: '#FEFCE8' },
-  { id: '9', name: 'Other', textIcon: '...', color: '#64748B', bg: '#F8FAFC' },
-];
-
-const laptopBrands = [
-  { id: '1', name: 'Apple', icon: 'logo-apple', color: '#000000', bg: '#F1F5F9' },
-  { id: '2', name: 'HP', textIcon: 'hp', color: '#0096D6', bg: '#F0F9FF' },
-  { id: '3', name: 'Dell', textIcon: 'DELL', color: '#007DB8', bg: '#F0F9FF' },
-  { id: '4', name: 'Lenovo', textIcon: 'L', color: '#E2231A', bg: '#FEF2F2' },
-  { id: '5', name: 'Asus', textIcon: 'A', color: '#00539B', bg: '#EFF6FF' },
-  { id: '6', name: 'Acer', textIcon: 'ac', color: '#83B81A', bg: '#F7FEE7' },
-];
-
 export default function DeviceSelectionScreen({ navigation }) {
   const [activeDevice, setActiveDevice] = useState('Mobile');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // 🚀 Firebase States
+  const [brands, setBrands] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Search filter logic
-  const currentBrands = activeDevice === 'Mobile' ? mobileBrands : laptopBrands;
-  const displayedBrands = currentBrands.filter(brand => 
-    brand.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // 🚀 REAL-TIME FETCH FROM FIREBASE
+  useEffect(() => {
+    setLoading(true);
+    
+    // Query: Fetch from 'master_brands' collection where type == 'Mobile' or 'Laptop'
+    const q = query(
+      collection(db, 'master_brands'), 
+      where('type', '==', activeDevice)
+    );
+
+    // onSnapshot se live updates milenge bina refresh kiye
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedBrands = [];
+      snapshot.forEach((doc) => {
+        fetchedBrands.push({ id: doc.id, ...doc.data() });
+      });
+      setBrands(fetchedBrands);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching brands: ", error);
+      setLoading(false);
+    });
+
+    // Cleanup function
+    return () => unsubscribe();
+  }, [activeDevice]); // Jab bhi tab (Mobile/Laptop) change hoga, fetch wapas chalega
+
+  // 🔍 Search filter logic
+  const displayedBrands = brands.filter(brand => 
+    brand.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // 🚀 Yahan se Navigation Hoga
-  const handleBrandSelect = (brandName) => {
+  // 🚀 Yahan se Navigation Hoga (ID bhi bhej rahe hain ab!)
+  const handleBrandSelect = (brand) => {
     navigation.navigate('ModelSelection', { 
-      brandName: brandName,
+      brandId: brand.id,         // 🔑 Database me search karne ke liye next screen pe
+      brandName: brand.name,
       deviceType: activeDevice 
     });
   };
@@ -112,30 +126,36 @@ export default function DeviceSelectionScreen({ navigation }) {
           {searchQuery.length > 0 ? 'Search Results' : 'Popular Brands'}
         </Text>
 
-        {/* 📱 BRAND GRID (All are Clickable Buttons Now) */}
-        <View style={styles.gridContainer}>
-          {displayedBrands.length === 0 ? (
-             <Text style={styles.noResultText}>No brands found for "{searchQuery}"</Text>
-          ) : (
-            displayedBrands.map((brand) => (
-              <TouchableOpacity 
-                key={brand.id} 
-                style={[styles.brandCard, shadowStyle]}
-                onPress={() => handleBrandSelect(brand.name)} 
-                activeOpacity={0.7}
-              >
-                <View style={[styles.brandIconBox, { backgroundColor: brand.bg }]}>
-                  {brand.icon ? (
-                    <Ionicons name={brand.icon} size={28} color={brand.color} />
-                  ) : (
-                    <Text style={[styles.brandTextIcon, { color: brand.color }]}>{brand.textIcon}</Text>
-                  )}
-                </View>
-                <Text style={styles.brandName}>{brand.name}</Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
+        {/* 📱 BRAND GRID (Dynamic with Loader) */}
+        {loading ? (
+          <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 50 }} />
+        ) : (
+          <View style={styles.gridContainer}>
+            {displayedBrands.length === 0 ? (
+               <Text style={styles.noResultText}>No brands found for "{searchQuery}"</Text>
+            ) : (
+              displayedBrands.map((brand) => (
+                <TouchableOpacity 
+                  key={brand.id} 
+                  style={[styles.brandCard, shadowStyle]}
+                  onPress={() => handleBrandSelect(brand)} 
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.brandIconBox, { backgroundColor: brand.bg || '#F1F5F9' }]}>
+                    {brand.icon ? (
+                      <Ionicons name={brand.icon} size={28} color={brand.color || '#0F172A'} />
+                    ) : (
+                      <Text style={[styles.brandTextIcon, { color: brand.color || '#0F172A' }]}>
+                        {brand.textIcon || brand.name.charAt(0)}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={styles.brandName}>{brand.name}</Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -157,8 +177,6 @@ const styles = StyleSheet.create({
   /* TOGGLE */
   toggleContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 16, padding: 4, marginBottom: 25 },
   toggleBtn: { flex: 1, flexDirection: 'row', paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  
-  // 🚀 FIX: Removed old shadow props and used Platform.select
   toggleActive: { 
     backgroundColor: '#2563EB', 
     ...Platform.select({
@@ -167,13 +185,12 @@ const styles = StyleSheet.create({
       web: { boxShadow: '0px 2px 4px rgba(37, 99, 235, 0.2)' }
     })
   },
-  
   toggleText: { fontSize: 14, fontWeight: '700', color: '#64748B', marginLeft: 6 },
   toggleTextActive: { color: '#FFFFFF' },
 
   /* SEARCH */
   searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 25 },
-  searchInput: { flex: 1, marginLeft: 10, fontSize: 15, color: '#0F172A', fontWeight: '600' },
+  searchInput: { flex: 1, marginLeft: 10, fontSize: 15, color: '#0F172A', fontWeight: '600', outlineStyle: 'none' },
   
   /* SECTION TITLE */
   sectionTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A', marginBottom: 20 },

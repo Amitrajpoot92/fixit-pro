@@ -1,10 +1,15 @@
 // src/screens/Booking/ModelSelectionScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
-  Platform, StatusBar, ScrollView, TextInput, Dimensions 
+  Platform, StatusBar, ScrollView, TextInput, Dimensions,
+  ActivityIndicator
 } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+
+// 🚀 Database Import
+import { db } from '../../services/firebaseConfig';
 
 const { width } = Dimensions.get('window');
 
@@ -12,49 +17,54 @@ const { width } = Dimensions.get('window');
 const shadowStyle = Platform.select({
   ios: { shadowColor: '#94A3B8', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 12 },
   android: { elevation: 5, shadowColor: '#94A3B8' },
+  web: { boxShadow: '0px 6px 12px rgba(148, 163, 184, 0.12)' }
 });
 
-// 📱 MASSIVE MOCK DATA FOR MODELS
-const allModels = [
-  // Apple
-  { id: '1', brand: 'Apple', name: 'iPhone 15 Pro Max', series: '15 Series' },
-  { id: '2', brand: 'Apple', name: 'iPhone 15 Pro', series: '15 Series' },
-  { id: '3', brand: 'Apple', name: 'iPhone 15', series: '15 Series' },
-  { id: '4', brand: 'Apple', name: 'iPhone 14 Pro Max', series: '14 Series' },
-  { id: '5', brand: 'Apple', name: 'iPhone 14 Plus', series: '14 Series' },
-  { id: '6', brand: 'Apple', name: 'iPhone 13', series: '13 Series' },
-  { id: '7', brand: 'Apple', name: 'iPhone 12 Mini', series: '12 Series' },
-  { id: '8', brand: 'Apple', name: 'iPhone 11', series: '11 Series' },
-  // Samsung
-  { id: '9', brand: 'Samsung', name: 'Galaxy S24 Ultra', series: 'S Series' },
-  { id: '10', brand: 'Samsung', name: 'Galaxy S23 Plus', series: 'S Series' },
-  { id: '11', brand: 'Samsung', name: 'Galaxy Z Fold 5', series: 'Z Series' },
-  { id: '12', brand: 'Samsung', name: 'Galaxy Z Flip 5', series: 'Z Series' },
-  { id: '13', brand: 'Samsung', name: 'Galaxy A54 5G', series: 'A Series' },
-  { id: '14', brand: 'Samsung', name: 'Galaxy M53', series: 'M Series' },
-  // OnePlus
-  { id: '15', brand: 'OnePlus', name: 'OnePlus 12', series: 'Flagship' },
-  { id: '16', brand: 'OnePlus', name: 'OnePlus 11R', series: 'R Series' },
-  { id: '17', brand: 'OnePlus', name: 'OnePlus Nord CE 3', series: 'Nord' },
-  { id: '18', brand: 'OnePlus', name: 'OnePlus 9 Pro', series: 'Flagship' },
-  // Google & Others
-  { id: '19', brand: 'Google', name: 'Pixel 8 Pro', series: 'Pixel 8' },
-  { id: '20', brand: 'Google', name: 'Pixel 7a', series: 'Pixel 7' },
-  { id: '21', brand: 'Vivo', name: 'Vivo X100 Pro', series: 'X Series' },
-  { id: '22', brand: 'Xiaomi', name: 'Xiaomi 14 Ultra', series: '14 Series' },
-  { id: '23', brand: 'Xiaomi', name: 'Redmi Note 13', series: 'Note Series' },
-  { id: '24', brand: 'Oppo', name: 'Reno 11 Pro', series: 'Reno' },
-];
-
 export default function ModelSelectionScreen({ navigation, route }) {
-  const selectedBrand = route.params?.brandName || 'Apple'; 
+  // 🚀 Get brand info passed from previous screen
+  const selectedBrandId = route.params?.brandId; 
+  const selectedBrandName = route.params?.brandName || 'Selected Brand'; 
+  
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // 🚀 Firebase States
+  const [models, setModels] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // 🚀 REAL-TIME FETCH FROM FIREBASE
+  useEffect(() => {
+    if (!selectedBrandId) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    
+    // Query: Fetch from 'master_models' collection where brandId matches the clicked brand
+    const q = query(
+      collection(db, 'master_models'), 
+      where('brandId', '==', selectedBrandId)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedModels = [];
+      snapshot.forEach((doc) => {
+        fetchedModels.push({ id: doc.id, ...doc.data() });
+      });
+      setModels(fetchedModels);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching models: ", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [selectedBrandId]);
 
   // 🔍 Real-time Search Logic
-  const filteredModels = allModels.filter(model => {
-    const matchesSearch = model.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch; 
-  });
+  const filteredModels = models.filter(model => 
+    model.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -74,7 +84,7 @@ export default function ModelSelectionScreen({ navigation, route }) {
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={22} color="#94A3B8" />
           <TextInput 
-            placeholder="Search your phone model..."
+            placeholder={`Search ${selectedBrandName} models...`}
             placeholderTextColor="#94A3B8"
             style={styles.searchInput}
             value={searchQuery}
@@ -88,46 +98,56 @@ export default function ModelSelectionScreen({ navigation, route }) {
         </View>
 
         <Text style={styles.sectionTitle}>
-          {searchQuery.length > 0 ? 'Search Results' : 'All Popular Models'}
+          {searchQuery.length > 0 ? 'Search Results' : `All ${selectedBrandName} Models`}
         </Text>
       </View>
 
-      {/* 📱 MODELS GRID (Fixed Scroll Issue by taking it out of strict View constraints) */}
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        contentContainerStyle={styles.scrollContent}
-        style={styles.scrollView}
-      >
-        <View style={styles.gridContainer}>
-          {filteredModels.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="phone-portrait-outline" size={48} color="#CBD5E1" />
-              <Text style={styles.emptyStateText}>No models found for "{searchQuery}"</Text>
-            </View>
-          ) : (
-            filteredModels.map((model) => (
-              <TouchableOpacity 
-                key={model.id} 
-                style={[styles.modelCard, shadowStyle]}
-                // 🚀 FIXED NAVIGATION: Ab ye click pe Service page par jayega
-                onPress={() => navigation.navigate('ServiceSelection', { modelName: model.name })} 
-                activeOpacity={0.8}
-              >
-                <View style={styles.modelIconBox}>
-                  <Ionicons name="phone-portrait-outline" size={32} color="#2563EB" />
-                </View>
-                <View style={styles.modelInfo}>
-                  <Text style={styles.brandTag}>{model.brand}</Text>
-                  <Text style={styles.modelName} numberOfLines={2}>{model.name}</Text>
-                  <View style={styles.seriesPill}>
-                    <Text style={styles.seriesText}>{model.series}</Text>
+      {/* 📱 MODELS GRID */}
+      {loading ? (
+        <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 50 }} />
+      ) : (
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={styles.scrollContent}
+          style={styles.scrollView}
+        >
+          <View style={styles.gridContainer}>
+            {filteredModels.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="phone-portrait-outline" size={48} color="#CBD5E1" />
+                <Text style={styles.emptyStateText}>No models found</Text>
+              </View>
+            ) : (
+              filteredModels.map((model) => (
+                <TouchableOpacity 
+                  key={model.id} 
+                  style={[styles.modelCard, shadowStyle]}
+                  // 🚀 NAVIGATION: Pass modelId to fetch specific services next
+                  onPress={() => navigation.navigate('ServiceSelection', { 
+                    modelId: model.id, 
+                    modelName: model.name,
+                    brandName: selectedBrandName
+                  })} 
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.modelIconBox}>
+                    <Ionicons name="phone-portrait-outline" size={32} color="#2563EB" />
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
-      </ScrollView>
+                  <View style={styles.modelInfo}>
+                    <Text style={styles.brandTag}>{selectedBrandName}</Text>
+                    <Text style={styles.modelName} numberOfLines={2}>{model.name}</Text>
+                    {model.series && (
+                      <View style={styles.seriesPill}>
+                        <Text style={styles.seriesText}>{model.series}</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -142,8 +162,8 @@ const styles = StyleSheet.create({
   searchSection: { paddingHorizontal: 20 },
 
   /* SEARCH BAR */
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 20, elevation: 2, shadowColor: '#94A3B8', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.08, shadowRadius: 5 },
-  searchInput: { flex: 1, marginLeft: 10, fontSize: 15, color: '#0F172A', fontWeight: '600' },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 20, ...Platform.select({ web: { outlineStyle: 'none' } }) },
+  searchInput: { flex: 1, marginLeft: 10, fontSize: 15, color: '#0F172A', fontWeight: '600', outlineStyle: 'none' },
   
   sectionTitle: { fontSize: 16, fontWeight: '800', color: '#475569', marginBottom: 15 },
   
