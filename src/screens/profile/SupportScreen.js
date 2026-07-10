@@ -31,7 +31,7 @@ export default function SupportScreen({ navigation }) {
     Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}`);
   };
 
-  // 🚀 Call Logic (Naya Add Kiya)
+  // 🚀 Call Logic
   const openCall = () => {
     const phoneNumber = '+919576441800';
     Linking.openURL(`tel:${phoneNumber}`);
@@ -50,49 +50,55 @@ export default function SupportScreen({ navigation }) {
         <View style={{width: 24}} /> 
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         
         {/* Custom Brand Logo Section */}
         <View style={styles.logoContainer}>
+          {/* ⚠️ NOTE: Agar tumhara logo.jpeg yahan nahi mila toh app crash hogi. Agar image nahi hai, toh is <Image> tag ko hata dena */}
           <Image 
             source={require('../../../assets/platform-img/logo.jpeg')} 
             style={styles.logoImage} 
+            // Fallback error handling in React Native
+            onError={(e) => console.log('Logo Image failed to load', e.nativeEvent.error)}
           />
         </View>
 
         <Text style={styles.sectionTitle}>How can we help you?</Text>
         
-        {/* 📞 Call Option (Naya) */}
-        <TouchableOpacity style={styles.optionCard} onPress={openCall}>
+        {/* 📞 Call Option */}
+        <TouchableOpacity style={styles.optionCard} onPress={openCall} activeOpacity={0.8}>
           <View style={[styles.iconBox, { backgroundColor: '#DBEAFE' }]}>
             <Ionicons name="call" size={24} color="#2563EB" />
           </View>
-          <View style={{marginLeft: 15}}>
+          <View style={{marginLeft: 15, flex: 1}}>
             <Text style={styles.optTitle}>Call Us</Text>
             <Text style={styles.optSub}>Speak directly with our team</Text>
           </View>
+          <MaterialIcons name="chevron-right" size={24} color="#CBD5E1" />
         </TouchableOpacity>
 
         {/* 💬 WhatsApp Option */}
-        <TouchableOpacity style={styles.optionCard} onPress={openWhatsApp}>
+        <TouchableOpacity style={styles.optionCard} onPress={openWhatsApp} activeOpacity={0.8}>
           <View style={[styles.iconBox, { backgroundColor: '#DCFCE7' }]}>
             <Ionicons name="logo-whatsapp" size={24} color="#16A34A" />
           </View>
-          <View style={{marginLeft: 15}}>
+          <View style={{marginLeft: 15, flex: 1}}>
             <Text style={styles.optTitle}>Chat on WhatsApp</Text>
             <Text style={styles.optSub}>Instant support from our team</Text>
           </View>
+          <MaterialIcons name="chevron-right" size={24} color="#CBD5E1" />
         </TouchableOpacity>
 
         {/* ✉️ Email Option */}
-        <TouchableOpacity style={styles.optionCard} onPress={openEmail}>
+        <TouchableOpacity style={styles.optionCard} onPress={openEmail} activeOpacity={0.8}>
           <View style={[styles.iconBox, { backgroundColor: '#F1F5F9' }]}>
             <Ionicons name="mail" size={24} color="#475569" />
           </View>
-          <View style={{marginLeft: 15}}>
+          <View style={{marginLeft: 15, flex: 1}}>
             <Text style={styles.optTitle}>Email Us</Text>
             <Text style={styles.optSub}>Get response within 24 hours</Text>
           </View>
+          <MaterialIcons name="chevron-right" size={24} color="#CBD5E1" />
         </TouchableOpacity>
 
         {/* FAQs */}
@@ -128,7 +134,7 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: { fontSize: 16, fontWeight: '800', marginBottom: 15, color: '#0F172A' },
-  optionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 20, borderRadius: 16, marginBottom: 15, borderWidth: 1, borderColor: '#E2E8F0' },
+  optionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 20, borderRadius: 16, marginBottom: 15, borderWidth: 1, borderColor: '#E2E8F0', ...Platform.select({ ios: { shadowColor: '#94A3B8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 }, android: { elevation: 2 } }) },
   iconBox: { width: 50, height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   optTitle: { fontSize: 15, fontWeight: '800', color: '#0F172A' },
   optSub: { fontSize: 12, color: '#64748B', marginTop: 2 },

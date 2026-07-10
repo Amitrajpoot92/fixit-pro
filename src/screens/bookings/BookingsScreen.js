@@ -1,45 +1,122 @@
 // src/screens/bookings/BookingsScreen.js
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, ScrollView, 
-  TouchableOpacity, Platform, StatusBar 
+  TouchableOpacity, Platform, StatusBar, ActivityIndicator 
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useTabVisibility } from '../../context/TabVisibilityContext';
 import { useNavigation } from '@react-navigation/native';
 
+// 🚀 Firebase Imports
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { db, auth } from '../../services/firebaseConfig'; 
+
 const shadowStyle = Platform.select({
   ios: { shadowColor: '#94A3B8', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 15 },
   android: { elevation: 6, shadowColor: '#94A3B8' },
+  web: { boxShadow: '0px 8px 15px rgba(148, 163, 184, 0.15)' }
 });
 
 const pillShadow = Platform.select({
   ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
   android: { elevation: 3 },
+  web: { boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)' }
 });
 
-const bookingData = [
-  { id: '#BK-1001', service: 'Screen Replacement', category: 'Apple iPhone 13 Pro', month: 'JUN', day: '18', time: '10:00 AM - 11:30 AM', status: 'Upcoming', proName: 'Rahul Sharma', proRating: '4.8', bg: '#EFF6FF', color: '#2563EB' },
-  { id: '#BK-1002', service: 'Battery Replacement', category: 'Samsung Galaxy S22', month: 'JUN', day: '20', time: '02:00 PM - 03:00 PM', status: 'Upcoming', proName: 'Unassigned', proRating: null, bg: '#F5F3FF', color: '#7C3AED' },
-  { id: '#BK-0985', service: 'Speaker Repair', category: 'OnePlus 9R', month: 'JUN', day: '02', time: '04:00 PM - 05:30 PM', status: 'Past', proName: 'Amit Kumar', proRating: '4.9', bg: '#ECFDF5', color: '#059669' },
-];
+// Helper: "Tomorrow" ko actual Date aur Month me badalne ke liye
+const getDisplayDate = (scheduleDateStr, createdAt) => {
+  let date = createdAt ? new Date(createdAt.toDate()) : new Date();
+  
+  if (scheduleDateStr === 'Tomorrow') {
+    date.setDate(date.getDate() + 1);
+  } else if (scheduleDateStr === 'Day After') {
+    date.setDate(date.getDate() + 2);
+  }
+
+  return {
+    month: date.toLocaleString('default', { month: 'short' }).toUpperCase(),
+    day: date.getDate().toString().padStart(2, '0')
+  };
+};
 
 export default function BookingsScreen() {
   const { setIsTabBarVisible } = useTabVisibility(); 
   const navigation = useNavigation();
   const currentY = useRef(0);
+  
   const [activeTab, setActiveTab] = useState('Upcoming');
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // 🚀 Fetch Live Bookings from Firestore
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'bookings'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedBookings = [];
+      
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        
+        // Sirf Home Visit ya Pickup wale orders yahan dikhayenge
+        if (data.serviceMode === 'home' || data.serviceMode === 'pickup') {
+          const dateObj = getDisplayDate(data.scheduleDate, data.createdAt);
+          
+          fetchedBookings.push({
+            id: doc.id,
+            orderId: data.orderId,
+            service: data.services ? data.services.map(s => s.serviceTitle).join(', ') : 'Service',
+            category: `${data.brandName} ${data.modelName}`,
+            month: dateObj.month,
+            day: dateObj.day,
+            time: data.scheduleTime || 'Anytime',
+            dbStatus: data.status ? data.status.toLowerCase() : 'order placed',
+            proName: data.technicianName || 'Unassigned',
+            proRating: data.technicianRating || null,
+            bg: '#EFF6FF',
+            color: '#2563EB'
+          });
+        }
+      });
+      
+      setBookings(fetchedBookings);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching bookings: ", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleScroll = (event) => {
     const yOffset = event.nativeEvent.contentOffset.y;
     const isScrollingDown = yOffset > currentY.current && yOffset > 50; 
     if (isScrollingDown) setIsTabBarVisible(false);
     else if (yOffset < currentY.current && (currentY.current - yOffset > 5)) setIsTabBarVisible(true); 
+    if (yOffset <= 10) setIsTabBarVisible(true);
     currentY.current = yOffset;
   };
 
-  const filteredBookings = bookingData.filter(b => b.status === activeTab);
+  // Status ke hisaab se filter lagana
+  const filteredBookings = bookings.filter(b => {
+    if (activeTab === 'Upcoming') return ['order placed', 'technician assigned', 'repair in-progress'].includes(b.dbStatus);
+    if (activeTab === 'Past') return b.dbStatus === 'completed';
+    if (activeTab === 'Cancelled') return b.dbStatus === 'cancelled';
+    return false;
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -62,55 +139,85 @@ export default function BookingsScreen() {
         ))}
       </View>
 
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        onScroll={handleScroll}
-        scrollEventThrottle={16} 
-        contentContainerStyle={{paddingBottom: 100, paddingHorizontal: 20}} 
-      >
-        {filteredBookings.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconCircle}><MaterialIcons name="event-busy" size={40} color="#94A3B8" /></View>
-            <Text style={styles.emptyStateTitle}>No {activeTab.toLowerCase()} bookings</Text>
-            <TouchableOpacity style={styles.bookNowBtn} onPress={() => navigation.navigate('DeviceSelection')}>
-              <Text style={styles.btnPrimaryText}>Book Now</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          filteredBookings.map((booking, idx) => (
-            <View key={idx} style={[styles.bookingCard, shadowStyle]}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.dateBox, { backgroundColor: booking.bg }]}>
-                  <Text style={[styles.dateMonth, { color: booking.color }]}>{booking.month}</Text>
-                  <Text style={[styles.dateDay, { color: booking.color }]}>{booking.day}</Text>
-                </View>
-                <View style={styles.bookingInfo}>
-                  <Text style={styles.categoryText}>{booking.category}</Text>
-                  <Text style={styles.serviceName}>{booking.service}</Text>
-                  <View style={styles.timeRow}><MaterialIcons name="schedule" size={14} color="#64748B" /><Text style={styles.timeText}>{booking.time}</Text></View>
-                </View>
-              </View>
-
-              <View style={styles.proBanner}>
-                {booking.proName !== 'Unassigned' ? (
-                  <>
-                    <View style={styles.proAvatar}><Text style={styles.proAvatarText}>{booking.proName.charAt(0)}</Text></View>
-                    <View style={styles.proDetails}><Text style={styles.proName}>{booking.proName}</Text><Text style={styles.proRating}>{booking.proRating} Rating</Text></View>
-                    <View style={styles.proActions}><TouchableOpacity style={styles.iconCircle}><MaterialIcons name="call" size={16} color={colors.success} /></TouchableOpacity></View>
-                  </>
-                ) : (
-                  <View style={styles.unassignedRow}><MaterialIcons name="hourglass-empty" size={18} color="#F59E0B" /><Text style={styles.unassignedText}>Assigning technician...</Text></View>
-                )}
-              </View>
-
-              <View style={styles.cardFooter}>
-                <TouchableOpacity style={[styles.actionBtn, styles.btnSoft]}><Text style={styles.btnSoftText}>Reschedule</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.actionBtn, styles.btnPrimary]}><Text style={styles.btnPrimaryText}>View Details</Text></TouchableOpacity>
-              </View>
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#2563EB" />
+        </View>
+      ) : (
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          onScroll={handleScroll}
+          scrollEventThrottle={16} 
+          contentContainerStyle={{paddingBottom: 150, paddingHorizontal: 20}} 
+        >
+          {filteredBookings.length === 0 ? (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconCircle}><MaterialIcons name="event-busy" size={40} color="#94A3B8" /></View>
+              <Text style={styles.emptyStateTitle}>No {activeTab.toLowerCase()} bookings</Text>
+              <TouchableOpacity style={styles.bookNowBtn} onPress={() => navigation.navigate('DeviceSelection')}>
+                <Text style={styles.btnPrimaryText}>Book Now</Text>
+              </TouchableOpacity>
             </View>
-          ))
-        )}
-      </ScrollView>
+          ) : (
+            filteredBookings.map((booking) => (
+              <View key={booking.id} style={[styles.bookingCard, shadowStyle]}>
+                <View style={styles.cardHeader}>
+                  <View style={[styles.dateBox, { backgroundColor: booking.bg }]}>
+                    <Text style={[styles.dateMonth, { color: booking.color }]}>{booking.month}</Text>
+                    <Text style={[styles.dateDay, { color: booking.color }]}>{booking.day}</Text>
+                  </View>
+                  <View style={styles.bookingInfo}>
+                    <Text style={styles.categoryText}>{booking.category}</Text>
+                    <Text style={styles.serviceName} numberOfLines={1}>{booking.service}</Text>
+                    <View style={styles.timeRow}>
+                      <MaterialIcons name="schedule" size={14} color="#64748B" />
+                      <Text style={styles.timeText}>{booking.time}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.proBanner}>
+                  {booking.proName !== 'Unassigned' ? (
+                    <>
+                      <View style={styles.proAvatar}><Text style={styles.proAvatarText}>{booking.proName.charAt(0)}</Text></View>
+                      <View style={styles.proDetails}>
+                        <Text style={styles.proName}>{booking.proName}</Text>
+                        <Text style={styles.proRating}>{booking.proRating ? `${booking.proRating} Rating` : 'Pro Tech'}</Text>
+                      </View>
+                      <View style={styles.proActions}>
+                        <TouchableOpacity style={styles.iconCircle}><MaterialIcons name="call" size={16} color={colors.success} /></TouchableOpacity>
+                      </View>
+                    </>
+                  ) : (
+                    <View style={styles.unassignedRow}>
+                      <MaterialIcons name="hourglass-empty" size={18} color="#F59E0B" />
+                      <Text style={styles.unassignedText}>Assigning technician...</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={styles.cardFooter}>
+                  <TouchableOpacity 
+                    style={[styles.actionBtn, styles.btnSoft]} 
+                    onPress={() => navigation.getParent().navigate('Support')}
+                  >
+                    <Text style={styles.btnSoftText}>Support</Text>
+                  </TouchableOpacity>
+                  
+                  {activeTab === 'Upcoming' && (
+                    <TouchableOpacity 
+                      style={[styles.actionBtn, styles.btnPrimary]} 
+                      onPress={() => navigation.navigate('OrderTracking', { orderId: booking.orderId })}
+                    >
+                      <Text style={styles.btnPrimaryText}>Track Order</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            ))
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }

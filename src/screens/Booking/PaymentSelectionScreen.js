@@ -15,11 +15,19 @@ export default function PaymentSelectionScreen({ navigation, route }) {
   const [method, setMethod] = useState('upi');
   const [loading, setLoading] = useState(false);
 
-  // 🚀 Pichli screen se aane wala data (fallback 0 agar test kar rahe ho)
+  // 🚀 CheckoutScreen se aane wala data
   const amount = route.params?.totalAmount || 0; 
   const brandName = route.params?.brandName || 'Unknown Brand';
   const modelName = route.params?.modelName || 'Unknown Model';
   const selectedServices = route.params?.selectedServices || [];
+  
+  const serviceMode = route.params?.serviceMode || 'self';
+  const scheduleDate = route.params?.scheduleDate || null;
+  const scheduleTime = route.params?.scheduleTime || null;
+  const serviceAddress = route.params?.serviceAddress || null; 
+
+  const selectedTechId = route.params?.selectedTechId; 
+  const selectedTechName = route.params?.selectedTechName;
 
   const paymentOptions = [
     { id: 'upi', name: 'UPI (GPay, PhonePe, Paytm)', icon: 'account-balance', desc: 'Pay instantly via your favorite UPI app' },
@@ -29,10 +37,16 @@ export default function PaymentSelectionScreen({ navigation, route }) {
 
   // 🚀 ORDER CREATE KARNE KA LOGIC
   const handlePayment = async () => {
-    const userId = auth.currentUser?.uid;
+    const currentUser = auth.currentUser;
+    const userId = currentUser?.uid;
     
     if (!userId) {
       Alert.alert("Login Required", "Please login to complete your booking.");
+      return;
+    }
+
+    if (!selectedTechId) {
+      Alert.alert("Error", "Technician data was lost. Please restart the booking process.");
       return;
     }
 
@@ -51,8 +65,25 @@ export default function PaymentSelectionScreen({ navigation, route }) {
         services: selectedServices,
         totalAmount: amount,
         paymentMethod: method,
-        paymentStatus: method === 'cod' ? 'Pending' : 'Paid', // Dummy logic for UPI/Card success
-        status: 'Order Placed', // Order Status lifecycle
+        paymentStatus: method === 'cod' ? 'Pending' : 'Paid',
+        status: 'Order Placed',
+        
+        // 🚀 CUSTOMER DETAILS FOR TECHNICIAN PANEL
+        customerName: currentUser.displayName || 'Customer',
+        customerEmail: currentUser.email || 'N/A',
+        customerPhone: currentUser.phoneNumber || (serviceAddress?.phone || 'N/A'),
+
+        // Technician Integration
+        technicianId: selectedTechId,
+        technicianName: selectedTechName,
+        technicianStatus: 'Pending', 
+        
+        // Mode & Scheduling
+        serviceMode: serviceMode,     
+        scheduleDate: scheduleDate,   
+        scheduleTime: scheduleTime, 
+        serviceAddress: serviceAddress,
+
         createdAt: serverTimestamp(),
       };
 
@@ -60,8 +91,6 @@ export default function PaymentSelectionScreen({ navigation, route }) {
       await addDoc(collection(db, 'bookings'), orderData);
 
       setLoading(false);
-      
-      // 4. Navigate to Success Screen
       navigation.navigate('OrderSuccess', { orderId });
 
     } catch (error) {
@@ -75,7 +104,6 @@ export default function PaymentSelectionScreen({ navigation, route }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
       
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} disabled={loading}>
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
@@ -85,7 +113,6 @@ export default function PaymentSelectionScreen({ navigation, route }) {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-        {/* AMOUNT CARD */}
         <View style={styles.amountCard}>
           <Text style={styles.amountLabel}>Amount to Pay</Text>
           <Text style={styles.amountValue}>₹{amount}</Text>
@@ -93,7 +120,6 @@ export default function PaymentSelectionScreen({ navigation, route }) {
 
         <Text style={styles.sectionTitle}>Select Method</Text>
         
-        {/* PAYMENT OPTIONS */}
         {paymentOptions.map((opt) => (
           <TouchableOpacity 
             key={opt.id} 
@@ -109,16 +135,11 @@ export default function PaymentSelectionScreen({ navigation, route }) {
               <Text style={[styles.optionName, method === opt.id && {color: colors.primary}]}>{opt.name}</Text>
               <Text style={styles.optionDesc}>{opt.desc}</Text>
             </View>
-            <Ionicons 
-              name={method === opt.id ? "radio-button-on" : "radio-button-off"} 
-              size={20} 
-              color={method === opt.id ? colors.primary : '#CBD5E1'} 
-            />
+            <Ionicons name={method === opt.id ? "radio-button-on" : "radio-button-off"} size={20} color={method === opt.id ? colors.primary : '#CBD5E1'} />
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      {/* BOTTOM ACTION BAR */}
       <View style={styles.bottomBar}>
         <TouchableOpacity 
           style={[styles.payBtn, loading && { opacity: 0.7 }]} 

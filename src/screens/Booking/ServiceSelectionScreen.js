@@ -85,7 +85,6 @@ export default function ServiceSelectionScreen({ navigation, route }) {
 
   // ➕ Add Vendor Service to Cart
   const selectVendorForService = (vendor) => {
-    // Check if this service is already in cart
     const existingIndex = cart.findIndex(item => item.serviceId === activeService.id);
     
     const cartItem = {
@@ -97,12 +96,10 @@ export default function ServiceSelectionScreen({ navigation, route }) {
     };
 
     if (existingIndex > -1) {
-      // Replace existing choice
       const newCart = [...cart];
       newCart[existingIndex] = cartItem;
       setCart(newCart);
     } else {
-      // Add new
       setCart([...cart, cartItem]);
     }
     setShowVendorPopup(false);
@@ -119,11 +116,19 @@ export default function ServiceSelectionScreen({ navigation, route }) {
   // 🚀 Go to Checkout
   const handleCheckout = () => {
     if (cart.length === 0) return;
+
+    // 🚀 DYNAMIC DATA PASSING LOGIC
+    // Hum pehli service ke technician ko as primary technician maan kar aage bhej rahe hain.
+    const primaryTechId = cart[0].vendorId;
+    const primaryTechName = cart[0].vendorName;
+
     navigation.navigate('Checkout', {
       brandName: selectedBrandName,
       modelName: selectedModelName,
-      selectedServices: cart, // Ab cart me service ke sath vendor details bhi ja rhi hain!
-      totalAmount: total
+      selectedServices: cart, 
+      totalAmount: total,
+      selectedTechId: primaryTechId,       // 👈 Yahan se dynamic ID CheckoutScreen me jayegi
+      selectedTechName: primaryTechName    // 👈 Yahan se dynamic Name CheckoutScreen me jayega
     });
   };
 
@@ -181,7 +186,7 @@ export default function ServiceSelectionScreen({ navigation, route }) {
         )}
       </ScrollView>
 
-      {/* 🏪 VENDOR COMPARISON POPUP (BOTTOM SHEET STYLE) */}
+      {/* 🏪 VENDOR COMPARISON POPUP */}
       {showVendorPopup && (
         <View style={styles.popupOverlay}>
           <View style={styles.popupContent}>
@@ -262,7 +267,6 @@ const styles = StyleSheet.create({
   priceTextSelected: { fontSize: 14, fontWeight: '900', color: '#059669' },
   removeBadge: { position: 'absolute', top: 8, right: 8 },
   
-  /* POPUP STYLES */
   popupOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end', zIndex: 10 },
   popupContent: { backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: height * 0.6 },
   popupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
@@ -280,7 +284,6 @@ const styles = StyleSheet.create({
   selectVendorBtn: { backgroundColor: '#2563EB', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
   selectVendorText: { color: '#FFF', fontWeight: '800', fontSize: 12 },
 
-  /* BOTTOM BAR */
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#E2E8F0', paddingBottom: Platform.OS === 'ios' ? 30 : 20 },
   totalLabel: { fontSize: 12, color: '#64748B', fontWeight: '600' },
   totalAmount: { fontSize: 20, fontWeight: '900', color: '#0F172A' },
