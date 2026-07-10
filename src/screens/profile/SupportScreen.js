@@ -1,5 +1,7 @@
 // src/screens/profile/SupportScreen.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore'; // 🚀 onSnapshot import kiya
+import { db } from '../../services/firebaseConfig';
 import { 
   View, 
   Text, 
@@ -16,25 +18,43 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 
 export default function SupportScreen({ navigation }) {
-  
+  // Default fallbacks (Agar net slow ho ya admin ne delete kar diya ho)
+  const [supportPhone, setSupportPhone] = useState('+919576441800');
+  const [supportEmail, setSupportEmail] = useState('Admin.mrfixitpro@gmail.com');
+
+  // 🚀 LIVE SYNC LOGIC: Admin panel se direct data fetch hoga real-time me
+  useEffect(() => {
+    const docRef = doc(db, 'admin_settings', 'global_config');
+    
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.supportPhone) setSupportPhone(data.supportPhone);
+        if (data.supportEmail) setSupportEmail(data.supportEmail);
+      }
+    }, (error) => {
+      console.log("Error fetching live support settings:", error);
+    });
+
+    // Cleanup listener on unmount
+    return () => unsubscribe();
+  }, []);
+
   // 🚀 WhatsApp Logic
   const openWhatsApp = () => {
-    const phoneNumber = '+919576441800';
     const message = 'Hello FixitPro Team! I am facing an issue and need some help. Please assist me.';
-    Linking.openURL(`whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`);
+    Linking.openURL(`whatsapp://send?phone=${supportPhone}&text=${encodeURIComponent(message)}`);
   };
 
   // 🚀 Email Logic
   const openEmail = () => {
-    const email = 'Admin.mrfixitpro@gmail.com';
     const subject = 'Need Support - FixitPro App';
-    Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}`);
+    Linking.openURL(`mailto:${supportEmail}?subject=${encodeURIComponent(subject)}`);
   };
 
   // 🚀 Call Logic
   const openCall = () => {
-    const phoneNumber = '+919576441800';
-    Linking.openURL(`tel:${phoneNumber}`);
+    Linking.openURL(`tel:${supportPhone}`);
   };
 
   return (
@@ -54,11 +74,10 @@ export default function SupportScreen({ navigation }) {
         
         {/* Custom Brand Logo Section */}
         <View style={styles.logoContainer}>
-          {/* ⚠️ NOTE: Agar tumhara logo.jpeg yahan nahi mila toh app crash hogi. Agar image nahi hai, toh is <Image> tag ko hata dena */}
+          {/* ⚠️ NOTE: Fallback error handling added safely */}
           <Image 
             source={require('../../../assets/platform-img/logo.jpeg')} 
             style={styles.logoImage} 
-            // Fallback error handling in React Native
             onError={(e) => console.log('Logo Image failed to load', e.nativeEvent.error)}
           />
         </View>
