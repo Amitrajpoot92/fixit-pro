@@ -5,9 +5,9 @@ import {
   ScrollView, StatusBar, Platform, ActivityIndicator, Alert 
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore'; 
 
-// 🚀 Firebase & App Imports
+// Firebase & App Imports
 import { db, auth } from '../../services/firebaseConfig';
 import { colors } from '../../theme/colors';
 
@@ -15,7 +15,7 @@ export default function PaymentSelectionScreen({ navigation, route }) {
   const [method, setMethod] = useState('upi');
   const [loading, setLoading] = useState(false);
 
-  // 🚀 CheckoutScreen se aane wala data
+  // CheckoutScreen se aane wala data
   const amount = route.params?.totalAmount || 0; 
   const brandName = route.params?.brandName || 'Unknown Brand';
   const modelName = route.params?.modelName || 'Unknown Model';
@@ -35,7 +35,7 @@ export default function PaymentSelectionScreen({ navigation, route }) {
     { id: 'cod', name: 'Cash on Delivery (COD)', icon: 'payments', desc: 'Pay technician after repair' },
   ];
 
-  // 🚀 ORDER CREATE KARNE KA LOGIC
+  // ORDER CREATE KARNE KA LOGIC
   const handlePayment = async () => {
     const currentUser = auth.currentUser;
     const userId = currentUser?.uid;
@@ -53,10 +53,40 @@ export default function PaymentSelectionScreen({ navigation, route }) {
     setLoading(true);
 
     try {
-      // 1. Generate unique Order ID
+      // Users collection se data fetch karo
+      const userDocRef = doc(db, 'users', userId);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      let realCustomerName = currentUser.displayName || 'Customer';
+      let realCustomerEmail = currentUser.email || 'N/A';
+      let realCustomerPhone = 'N/A';
+
+      // 1. Check inside Users Collection
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        if (userData.name) realCustomerName = userData.name;
+        if (userData.email) realCustomerEmail = userData.email;
+        
+        // 🚀 BULLETPROOF PHONE CHECK: Har possible key check karega
+        if (userData.phone && userData.phone.trim() !== '') realCustomerPhone = userData.phone;
+        else if (userData.phoneNumber && userData.phoneNumber.trim() !== '') realCustomerPhone = userData.phoneNumber;
+        else if (userData.mobile && userData.mobile.trim() !== '') realCustomerPhone = userData.mobile;
+      }
+
+      // 2. Check Auth Phone Number (Agar Users DB me nahi mila)
+      if (realCustomerPhone === 'N/A' && currentUser.phoneNumber) {
+        realCustomerPhone = currentUser.phoneNumber;
+      }
+
+      // 3. Check inside Selected Address (Agar dono jagah nahi mila)
+      if (realCustomerPhone === 'N/A' && serviceAddress) {
+        if (serviceAddress.phone) realCustomerPhone = serviceAddress.phone;
+        else if (serviceAddress.mobile) realCustomerPhone = serviceAddress.mobile;
+        else if (serviceAddress.phoneNumber) realCustomerPhone = serviceAddress.phoneNumber;
+      }
+
       const orderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
 
-      // 2. Prepare Order Data
       const orderData = {
         orderId,
         userId,
@@ -68,10 +98,10 @@ export default function PaymentSelectionScreen({ navigation, route }) {
         paymentStatus: method === 'cod' ? 'Pending' : 'Paid',
         status: 'Order Placed',
         
-        // 🚀 CUSTOMER DETAILS FOR TECHNICIAN PANEL
-        customerName: currentUser.displayName || 'Customer',
-        customerEmail: currentUser.email || 'N/A',
-        customerPhone: currentUser.phoneNumber || (serviceAddress?.phone || 'N/A'),
+        // REAL DATA SAVED PERMANENTLY HERE
+        customerName: realCustomerName,
+        customerEmail: realCustomerEmail,
+        customerPhone: realCustomerPhone, // Ab ye 100% save hoga
 
         // Technician Integration
         technicianId: selectedTechId,
@@ -87,7 +117,6 @@ export default function PaymentSelectionScreen({ navigation, route }) {
         createdAt: serverTimestamp(),
       };
 
-      // 3. Save to Firestore
       await addDoc(collection(db, 'bookings'), orderData);
 
       setLoading(false);
@@ -141,18 +170,12 @@ export default function PaymentSelectionScreen({ navigation, route }) {
       </ScrollView>
 
       <View style={styles.bottomBar}>
-        <TouchableOpacity 
-          style={[styles.payBtn, loading && { opacity: 0.7 }]} 
-          onPress={handlePayment}
-          disabled={loading}
-        >
+        <TouchableOpacity style={[styles.payBtn, loading && { opacity: 0.7 }]} onPress={handlePayment} disabled={loading}>
           {loading ? (
             <ActivityIndicator size="small" color="#FFF" />
           ) : (
             <>
-              <Text style={styles.btnText}>
-                {method === 'cod' ? 'Confirm Order' : `Pay ₹${amount}`}
-              </Text>
+              <Text style={styles.btnText}>{method === 'cod' ? 'Confirm Order' : `Pay ₹${amount}`}</Text>
               <MaterialIcons name="chevron-right" size={22} color="#FFF" />
             </>
           )}
@@ -167,18 +190,15 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
   backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
   headerTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
-  
-  amountCard: { backgroundColor: '#2563EB', padding: 30, borderRadius: 24, alignItems: 'center', marginBottom: 30, ...Platform.select({ ios: { shadowColor: '#2563EB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 12 }, android: { elevation: 8 } }) },
+  amountCard: { backgroundColor: '#2563EB', padding: 30, borderRadius: 24, alignItems: 'center', marginBottom: 30 },
   amountLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: '600' },
   amountValue: { color: '#FFF', fontSize: 36, fontWeight: '900', marginTop: 5 },
-  
   sectionTitle: { fontSize: 16, fontWeight: '800', color: '#475569', marginBottom: 15 },
   optionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 18, borderRadius: 20, marginBottom: 15, borderWidth: 1.5, borderColor: '#E2E8F0' },
   activeOption: { borderColor: '#2563EB', backgroundColor: '#EFF6FF' },
   iconCircle: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
   optionName: { fontSize: 15, fontWeight: '800', color: '#0F172A' },
   optionDesc: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
-  
   bottomBar: { padding: 20, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#E2E8F0', paddingBottom: Platform.OS === 'ios' ? 30 : 20 },
   payBtn: { flexDirection: 'row', backgroundColor: '#2563EB', paddingVertical: 16, borderRadius: 16, justifyContent: 'center', alignItems: 'center', gap: 5 },
   btnText: { color: '#FFF', fontSize: 16, fontWeight: '800' }

@@ -1,122 +1,348 @@
 // src/screens/Booking/OrderTrackingScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, StatusBar, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import { 
+  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
+  StatusBar, ScrollView, Platform, ActivityIndicator, Linking, Modal, TextInput, Alert 
+} from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore'; 
 import { db } from '../../services/firebaseConfig';
 import { colors } from '../../theme/colors';
 
 export default function OrderTrackingScreen({ navigation, route }) {
   const { orderId } = route.params || {};
   const [order, setOrder] = useState(null);
+  const [orderDocId, setOrderDocId] = useState(null); // Firebase Document ID for updating
   const [loading, setLoading] = useState(true);
+  
+  // Technician (Shop) Details State
+  const [techProfile, setTechProfile] = useState(null);
+
+  // 🚀 Cancellation States
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('Changed my mind');
+  const [cancelNote, setCancelNote] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+
+  const cancelFaqs = [
+    'Changed my mind', 
+    'Got a better price elsewhere', 
+    'Technician taking too long', 
+    'Booked by mistake', 
+    'Other'
+  ];
 
   useEffect(() => {
     if (!orderId) return;
     const q = query(collection(db, 'bookings'), where('orderId', '==', orderId));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) setOrder(snapshot.docs[0].data());
+    
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      if (!snapshot.empty) {
+        const docSnap = snapshot.docs[0];
+        const orderData = docSnap.data();
+        setOrder(orderData);
+        setOrderDocId(docSnap.id); // Save document ID for updates
+
+        // Fetch Technician Profile dynamically if assigned
+        if (orderData.technicianId && orderData.technicianStatus !== 'Pending') {
+          try {
+            const techRef = doc(db, 'technicians', orderData.technicianId);
+            const techSnap = await getDoc(techRef);
+            if (techSnap.exists()) {
+              setTechProfile(techSnap.data());
+            }
+          } catch (error) {
+            console.error("Error fetching technician profile:", error);
+          }
+        }
+      }
       setLoading(false);
     });
+    
     return () => unsubscribe();
   }, [orderId]);
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;
+  // 🚀 User Order Cancel Function
+  const handleCancelOrder = async () => {
+    if (!cancelNote.trim()) {
+      Alert.alert("Note Required", "Please provide a short note/reason for cancellation.");
+      return;
+    }
 
+    setCancelling(true);
+    try {
+      await updateDoc(doc(db, 'bookings', orderDocId), {
+        status: 'Cancelled',
+        cancelledBy: 'User',
+        cancelReason: `${cancelReason} - ${cancelNote}`
+      });
+      setShowCancelModal(false);
+      Alert.alert("Order Cancelled", "Your order has been cancelled successfully.");
+    } catch (error) {
+      Alert.alert("Error", "Could not cancel order. Try again.");
+    }
+    setCancelling(false);
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  // Exact Steps Logic to maintain old flow
   const steps = [
-    { id: 'order placed', title: 'Order Placed', icon: 'receipt-long' },
-    { id: 'technician assigned', title: 'Technician Assigned', icon: 'person-pin' },
-    { id: 'repair in-progress', title: 'Repair In-Progress', icon: 'build' },
-    { id: 'completed', title: 'Completed', icon: 'check-circle' }
+    { id: 'Order Placed', title: 'Order Placed', icon: 'receipt-long' },
+    { id: 'Technician Assigned', title: 'Technician Assigned', icon: 'person-pin' },
+    { id: 'Repair In-Progress', title: 'Repair In-Progress', icon: 'build' },
+    { id: 'Completed', title: 'Completed', icon: 'check-circle' }
   ];
 
-  const currentIdx = steps.findIndex(s => s.id === order?.status?.toLowerCase());
+  // If order is cancelled, we stop the timeline tracking index
+  const isCancelled = order?.status === 'Cancelled';
+  const currentStatusIndex = isCancelled ? -1 : steps.findIndex(s => s.id.toLowerCase() === order?.status?.toLowerCase());
+
+  // Direct Communication Handlers
+  const handleCall = () => {
+    if (techProfile?.mobileNo) Linking.openURL(`tel:${techProfile.mobileNo}`);
+  };
+
+  const handleEmail = () => {
+    if (techProfile?.email) Linking.openURL(`mailto:${techProfile.email}`);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 🚀 StatusBar me translucent false lagaya */}
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
       
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Live Tracking</Text>
+        <Text style={styles.headerTitle}>Track Order</Text>
+        <View style={{width: 44}} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Order Summary Card */}
-        <View style={styles.orderSummary}>
-          <Text style={styles.orderIdLabel}>Order #{orderId}</Text>
-          <Text style={styles.deviceInfo}>{order?.brandName} {order?.modelName}</Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>₹{order?.totalAmount}</Text>
-            <View style={styles.statusBadge}><Text style={styles.statusText}>{order?.status}</Text></View>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+        
+        {/* Order Info Header */}
+        <View style={styles.orderHeader}>
+          <View>
+            <Text style={styles.orderIdText}>{order?.orderId}</Text>
+            <Text style={styles.deviceText}>{order?.brandName} {order?.modelName}</Text>
+          </View>
+          <View style={[styles.statusBadge, isCancelled && styles.statusBadgeCancelled]}>
+            <Text style={[styles.statusText, isCancelled && styles.statusTextCancelled]}>
+              {order?.status}
+            </Text>
           </View>
         </View>
 
-        {/* Timeline */}
-        <View style={styles.timelineContainer}>
-          {steps.map((step, index) => (
-            <View key={step.id} style={styles.step}>
-              <View style={[styles.iconBox, index <= currentIdx ? styles.iconActive : styles.iconInactive]}>
-                <MaterialIcons name={step.icon} size={20} color={index <= currentIdx ? '#FFF' : '#94A3B8'} />
-              </View>
-              <Text style={[styles.stepTitle, index <= currentIdx && styles.textActive]}>{step.title}</Text>
-              {index < steps.length - 1 && <View style={[styles.connector, index < currentIdx && styles.connActive]} />}
+        {/* 🚀 NEW: Cancellation Highlight Banner */}
+        {isCancelled && (
+          <View style={styles.cancelledBanner}>
+            <Ionicons name="warning" size={24} color="#EF4444" />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.cancelledTitle}>
+                Order Cancelled by {order?.cancelledBy === 'User' ? 'You' : 'Technician'}
+              </Text>
+              <Text style={styles.cancelledReason}>
+                Reason: {order?.cancelReason || 'No reason provided.'}
+              </Text>
             </View>
-          ))}
-        </View>
+          </View>
+        )}
 
-        {/* Tech Info */}
-        {order?.technicianName && (
-          <View style={styles.techCard}>
-            <View style={styles.techAvatar}><Text style={styles.avatarTxt}>{order.technicianName.charAt(0)}</Text></View>
-            <View style={styles.techDetails}>
-              <Text style={styles.techName}>{order.technicianName}</Text>
-              <Text style={styles.techRole}>Your Pro Technician</Text>
+        {/* Live Timeline Component (Hidden if Cancelled) */}
+        {!isCancelled && (
+          <View style={styles.timelineContainer}>
+            {steps.map((step, index) => {
+              const isActive = index <= currentStatusIndex;
+              const isLast = index === steps.length - 1;
+
+              return (
+                <View key={step.id} style={styles.step}>
+                  <View style={[styles.iconBox, isActive ? styles.iconActive : styles.iconInactive]}>
+                    <MaterialIcons name={step.icon} size={20} color={isActive ? '#FFF' : '#94A3B8'} />
+                  </View>
+                  <Text style={[styles.stepTitle, isActive && styles.textActive]}>{step.title}</Text>
+                  
+                  {!isLast && (
+                    <View style={[styles.connector, isActive && currentStatusIndex > index && styles.connActive]} />
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Shop / Technician Transparency Details Card */}
+        {techProfile && (
+          <View style={styles.shopCard}>
+            <View style={styles.shopHeader}>
+              <View style={styles.shopAvatar}>
+                <MaterialIcons name="storefront" size={28} color={colors.primary} />
+              </View>
+              <View style={{flex: 1}}>
+                <Text style={styles.shopName}>{techProfile.shopName || 'Expert Service Center'}</Text>
+                <Text style={styles.shopOwner}>by {techProfile.ownerName || order?.technicianName || 'Partner Technician'}</Text>
+              </View>
             </View>
-            <TouchableOpacity style={styles.callBtn}><Ionicons name="call" size={20} color="#FFF" /></TouchableOpacity>
+
+            <View style={styles.shopDetailsBox}>
+              <View style={styles.detailRow}>
+                <Ionicons name="location" size={16} color="#64748B" />
+                <Text style={styles.detailText}>{techProfile.shopAddress || 'Address not provided'}</Text>
+              </View>
+              {techProfile.email ? (
+                <View style={styles.detailRow}>
+                  <Ionicons name="mail" size={16} color="#64748B" />
+                  <Text style={styles.detailText}>{techProfile.email}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            <View style={styles.actionRow}>
+              <TouchableOpacity style={styles.actionBtnCall} onPress={handleCall}>
+                <Ionicons name="call" size={18} color="#FFF" />
+                <Text style={styles.actionBtnTextCall}>Call Shop</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtnEmail} onPress={handleEmail}>
+                <Ionicons name="mail-outline" size={18} color={colors.primary} />
+                <Text style={styles.actionBtnTextEmail}>Email</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </ScrollView>
+
+      {/* 🚀 NEW: Cancel Button (Fixed at Bottom) */}
+      {!isCancelled && order?.status !== 'Completed' && (
+        <View style={styles.bottomCancelBar}>
+          <TouchableOpacity style={styles.cancelOrderBtn} onPress={() => setShowCancelModal(true)}>
+            <Text style={styles.cancelOrderText}>Cancel Order</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* 🚀 NEW: Cancellation Modal */}
+      <Modal visible={showCancelModal} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Cancel Order</Text>
+              <TouchableOpacity onPress={() => setShowCancelModal(false)}>
+                <Ionicons name="close" size={24} color="#0F172A" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalSubtitle}>Please let us know why you are cancelling:</Text>
+            
+            {/* FAQ Reasons */}
+            <View style={styles.reasonContainer}>
+              {cancelFaqs.map((faq, index) => (
+                <TouchableOpacity 
+                  key={index} 
+                  style={[styles.reasonPill, cancelReason === faq && styles.reasonPillActive]}
+                  onPress={() => setCancelReason(faq)}
+                >
+                  <Text style={[styles.reasonText, cancelReason === faq && styles.reasonTextActive]}>{faq}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.modalSubtitle}>Additional Notes (Mandatory):</Text>
+            <TextInput 
+              style={styles.notesInput}
+              placeholder="Please type your reason here..."
+              multiline={true}
+              numberOfLines={3}
+              value={cancelNote}
+              onChangeText={setCancelNote}
+            />
+
+            <TouchableOpacity 
+              style={[styles.confirmCancelBtn, cancelling && {opacity: 0.7}]} 
+              onPress={handleCancelOrder}
+              disabled={cancelling}
+            >
+              {cancelling ? (
+                <ActivityIndicator color="#FFF" size="small" />
+              ) : (
+                <Text style={styles.confirmCancelText}>Confirm Cancellation</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  // 🚀 FIX YAHAN HAI: paddingTop add kiya Platform ke hisab se
-  container: { 
-    flex: 1, 
-    backgroundColor: '#F8FAFC',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 
-  },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 20 },
-  headerTitle: { fontSize: 20, fontWeight: '900', marginLeft: 15 },
-  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-  scroll: { padding: 20 },
-  orderSummary: { backgroundColor: '#FFF', padding: 20, borderRadius: 24, marginBottom: 25, elevation: 4, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
-  orderIdLabel: { fontSize: 14, fontWeight: '800', color: '#64748B' },
-  deviceInfo: { fontSize: 18, fontWeight: '900', color: '#0F172A', marginTop: 4 },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 },
-  price: { fontSize: 20, fontWeight: '900', color: '#059669' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: { flex: 1, backgroundColor: '#F8FAFC', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
+  
+  orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  orderIdText: { fontSize: 14, fontWeight: '800', color: '#64748B', marginBottom: 4 },
+  deviceText: { fontSize: 18, fontWeight: '900', color: '#0F172A' },
   statusBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   statusText: { fontSize: 12, fontWeight: '800', color: '#2563EB' },
-  timelineContainer: { backgroundColor: '#FFF', padding: 25, borderRadius: 24, marginBottom: 25 },
+  
+  // 🚀 Cancelled Banner Styles
+  statusBadgeCancelled: { backgroundColor: '#FEE2E2' },
+  statusTextCancelled: { color: '#EF4444' },
+  cancelledBanner: { flexDirection: 'row', backgroundColor: '#FEF2F2', p: 15, padding: 15, borderRadius: 16, borderWidth: 1, borderColor: '#FECACA', marginBottom: 20, alignItems: 'center' },
+  cancelledTitle: { fontSize: 14, fontWeight: '900', color: '#991B1B' },
+  cancelledReason: { fontSize: 13, color: '#DC2626', marginTop: 4, fontWeight: '500' },
+
+  timelineContainer: { backgroundColor: '#FFF', padding: 25, borderRadius: 24, marginBottom: 25, borderWidth: 1, borderColor: '#F1F5F9' },
   step: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   iconBox: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   iconActive: { backgroundColor: '#2563EB' },
   iconInactive: { backgroundColor: '#F1F5F9' },
   stepTitle: { marginLeft: 15, fontSize: 14, fontWeight: '800', color: '#94A3B8' },
   textActive: { color: '#0F172A' },
-  connector: { position: 'absolute', left: 20, top: 40, width: 2, height: 20, backgroundColor: '#F1F5F9' },
+  connector: { position: 'absolute', left: 19, top: 40, width: 2, height: 20, backgroundColor: '#F1F5F9' },
   connActive: { backgroundColor: '#2563EB' },
-  techCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 20, borderRadius: 24 },
-  techAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#E0E7FF', justifyContent: 'center', alignItems: 'center' },
-  avatarTxt: { fontSize: 20, fontWeight: '800', color: '#2563EB' },
-  techDetails: { flex: 1, marginLeft: 15 },
-  techName: { fontSize: 16, fontWeight: '800' },
-  techRole: { fontSize: 12, color: '#64748B' },
-  callBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#059669', justifyContent: 'center', alignItems: 'center' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' }
+  
+  shopCard: { backgroundColor: '#FFF', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#F1F5F9' },
+  shopHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  shopAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  shopName: { fontSize: 16, fontWeight: '900', color: '#0F172A' },
+  shopOwner: { fontSize: 13, color: '#64748B', fontWeight: '600', marginTop: 2 },
+  shopDetailsBox: { backgroundColor: '#F8FAFC', padding: 15, borderRadius: 16, marginBottom: 20 },
+  detailRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8, gap: 8 },
+  detailText: { fontSize: 13, color: '#475569', fontWeight: '500', flex: 1, lineHeight: 18 },
+  actionRow: { flexDirection: 'row', gap: 10 },
+  actionBtnCall: { flex: 1, flexDirection: 'row', backgroundColor: colors.primary, paddingVertical: 12, borderRadius: 14, justifyContent: 'center', alignItems: 'center', gap: 6 },
+  actionBtnTextCall: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
+  actionBtnEmail: { flex: 1, flexDirection: 'row', backgroundColor: '#EFF6FF', paddingVertical: 12, borderRadius: 14, justifyContent: 'center', alignItems: 'center', gap: 6 },
+  actionBtnTextEmail: { color: colors.primary, fontSize: 14, fontWeight: 'bold' },
+
+  // 🚀 Cancel Button Styles
+  bottomCancelBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#E2E8F0', paddingBottom: Platform.OS === 'ios' ? 30 : 20 },
+  cancelOrderBtn: { backgroundColor: '#FEF2F2', paddingVertical: 16, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FECACA' },
+  cancelOrderText: { color: '#EF4444', fontSize: 16, fontWeight: '800' },
+
+  // 🚀 Modal Styles
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 20, fontWeight: '900', color: '#0F172A' },
+  modalSubtitle: { fontSize: 14, fontWeight: '700', color: '#64748B', marginBottom: 10 },
+  reasonContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  reasonPill: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
+  reasonPillActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
+  reasonText: { fontSize: 13, fontWeight: '600', color: '#475569' },
+  reasonTextActive: { color: '#2563EB' },
+  notesInput: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 15, fontSize: 14, textAlignVertical: 'top', height: 100, marginBottom: 20 },
+  confirmCancelBtn: { backgroundColor: '#EF4444', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+  confirmCancelText: { color: '#FFF', fontSize: 16, fontWeight: '800' }
 });
