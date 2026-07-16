@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../../firebase'; // Path check kar lena
+import { auth, db } from '../../firebase'; 
 import { Loader2 } from 'lucide-react';
 
 export default function ProtectedRoute({ children, allowedRole }) {
@@ -22,7 +22,7 @@ export default function ProtectedRoute({ children, allowedRole }) {
               setIsAuthorized(false); // ❌ Wrong Role
             }
           } 
-          // 🟢 TECHNICIAN ROLE CHECK (YE FIX KIYA HAI)
+          // 🟢 TECHNICIAN ROLE CHECK
           else if (allowedRole === 'technician') {
             const techDoc = await getDoc(doc(db, 'technicians', user.uid));
             if (techDoc.exists()) {
@@ -31,8 +31,12 @@ export default function ProtectedRoute({ children, allowedRole }) {
               setIsAuthorized(false); // ❌ Not found in technicians
             }
           }
+          // 🟡 FALLBACK FOR UNKNOWN ROLES
+          else {
+             setIsAuthorized(false);
+          }
         } catch (error) {
-          console.error("Error fetching role:", error);
+          console.error(`Error fetching role for ${allowedRole}:`, error);
           setIsAuthorized(false);
         }
       } else {
@@ -43,7 +47,7 @@ export default function ProtectedRoute({ children, allowedRole }) {
     return () => unsubscribe();
   }, [allowedRole]);
 
-  // Jab tak check chal raha hai, tab tak Loader dikhao (Bounce roke ga)
+  // Jab tak check chal raha hai, tab tak Loader dikhao
   if (isAuthorized === null) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-[#050B14]">
@@ -57,6 +61,6 @@ export default function ProtectedRoute({ children, allowedRole }) {
     return <Navigate to={allowedRole === 'admin' ? '/admin' : '/technician'} replace />;
   }
 
-  // Agar pass ho gaya, toh page dikha do
+  // Agar pass ho gaya, toh page render karo
   return children;
 }

@@ -22,7 +22,6 @@ import OrderTrackingScreen from '../screens/Booking/OrderTrackingScreen';
 // 🚀 Profile Module Imports
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import AddressScreen from '../screens/profile/AddressScreen';
-// 🔄 Updated: PaymentMethods replaced with ReferAndEarn
 import ReferAndEarnScreen from '../screens/profile/ReferAndEarnScreen';
 import OffersScreen from '../screens/profile/OffersScreen';
 import SupportScreen from '../screens/profile/SupportScreen';
@@ -31,13 +30,21 @@ import SettingsScreen from '../screens/profile/SettingsScreen';
 // 🚀 Wallet Module Import
 import WalletScreen from '../screens/wallet/WalletScreen';
 
+// 🚀 Knowledge Screens Imports
+import PickupDropInfo from '../screens/knowledge/PickupDropInfo';
+import HomeServiceInfo from '../screens/knowledge/HomeServiceInfo';
+
+// 🚀 Accessories Screens Imports
+import ProductsMainScreen from '../screens/accessories/ProductsMainScreen';
+import ProductDetailScreen from '../screens/accessories/ProductDetailScreen';
+import ProductCheckoutScreen from '../screens/accessories/ProductCheckoutScreen';
+import CartScreen from '../screens/accessories/CartScreen';
+
 const Stack = createStackNavigator();
 
 export default function AppNavigator() {
-  // 🧠 Context se loading state nikaal li (user nikaalne ki yahan zaroorat nahi kyunki sab open hai)
   const { loading } = useAuth();
 
-  // Jab tak Firebase check kar raha hai ki user login hai ya nahi, tab tak loader dikhao
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
@@ -47,17 +54,10 @@ export default function AppNavigator() {
   }
 
   return (
-    // 🚀 initialRouteName "MainTabs" set kiya taaki app khulte hi seedha Home dikhe
     <Stack.Navigator initialRouteName="MainTabs" screenOptions={{ headerShown: false }}>
-      
-      {/* 🌍 Core Application (Explore First) */}
       <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
-      
-      {/* 🔐 Authentication Screens (Jab zarurat ho tab yahan bhejenge) */}
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
-
-      {/* 🛠️ Booking Flow Screens */}
       <Stack.Screen name="DeviceSelection" component={DeviceSelectionScreen} />
       <Stack.Screen name="ModelSelection" component={ModelSelectionScreen} />
       <Stack.Screen name="ServiceSelection" component={ServiceSelectionScreen} />
@@ -65,19 +65,19 @@ export default function AppNavigator() {
       <Stack.Screen name="PaymentSelection" component={PaymentSelectionScreen} />
       <Stack.Screen name="OrderSuccess" component={OrderSuccessScreen} />
       <Stack.Screen name="OrderTracking" component={OrderTrackingScreen} />
-      
-      {/* 🚀 Profile Screens */}
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="Address" component={AddressScreen} />
-      {/* 🔄 Updated Route Name */}
       <Stack.Screen name="ReferEarn" component={ReferAndEarnScreen} />
       <Stack.Screen name="Offers" component={OffersScreen} />
       <Stack.Screen name="Support" component={SupportScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
-
-      {/* 🚀 Wallet Screen */}
       <Stack.Screen name="Wallet" component={WalletScreen} />
-
+      <Stack.Screen name="PickupDropInfo" component={PickupDropInfo} />
+      <Stack.Screen name="HomeServiceInfo" component={HomeServiceInfo} />
+      <Stack.Screen name="ProductsMain" component={ProductsMainScreen} />
+      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+      <Stack.Screen name="ProductCheckout" component={ProductCheckoutScreen} />
+      <Stack.Screen name="CartScreen" component={CartScreen} />
     </Stack.Navigator>
   );
 }

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
-  Platform, StatusBar, ScrollView, ActivityIndicator, FlatList, Dimensions 
+  Platform, StatusBar, ScrollView, ActivityIndicator, FlatList, Dimensions, Image 
 } from 'react-native';
 import { MaterialIcons, Ionicons, FontAwesome } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -21,16 +21,12 @@ export default function ServiceSelectionScreen({ navigation, route }) {
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // 🛒 Cart system for selected services with chosen technicians
   const [cart, setCart] = useState([]); 
-
-  // 🏪 Vendor Popup States
   const [showVendorPopup, setShowVendorPopup] = useState(false);
   const [activeService, setActiveService] = useState(null);
   const [vendors, setVendors] = useState([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
 
-  // 🚀 1. Fetch Master Services for the Model
   useEffect(() => {
     if (!selectedModelId) {
       setLoading(false);
@@ -55,13 +51,11 @@ export default function ServiceSelectionScreen({ navigation, route }) {
     return () => unsubscribe();
   }, [selectedModelId]);
 
-  // 🚀 2. Fetch Technicians & Prices when a Service is clicked
   const handleServiceClick = (service) => {
     setActiveService(service);
     setShowVendorPopup(true);
     setLoadingVendors(true);
 
-    // Query: 'technician_rates' me se is unique masterServiceId ke rates nikalo
     const q = query(
       collection(db, 'technician_rates'), 
       where('masterServiceId', '==', service.id),
@@ -83,7 +77,6 @@ export default function ServiceSelectionScreen({ navigation, route }) {
     return () => unsubscribe;
   };
 
-  // ➕ Add Vendor Service to Cart
   const selectVendorForService = (vendor) => {
     const existingIndex = cart.findIndex(item => item.serviceId === activeService.id);
     
@@ -105,20 +98,14 @@ export default function ServiceSelectionScreen({ navigation, route }) {
     setShowVendorPopup(false);
   };
 
-  // ❌ Remove from Cart
   const removeServiceFromCart = (serviceId) => {
     setCart(cart.filter(item => item.serviceId !== serviceId));
   };
 
-  // 💰 Calculate Total
   const total = cart.reduce((sum, item) => sum + item.price, 0);
 
-  // 🚀 Go to Checkout
   const handleCheckout = () => {
     if (cart.length === 0) return;
-
-    // 🚀 DYNAMIC DATA PASSING LOGIC
-    // Hum pehli service ke technician ko as primary technician maan kar aage bhej rahe hain.
     const primaryTechId = cart[0].vendorId;
     const primaryTechName = cart[0].vendorName;
 
@@ -127,8 +114,8 @@ export default function ServiceSelectionScreen({ navigation, route }) {
       modelName: selectedModelName,
       selectedServices: cart, 
       totalAmount: total,
-      selectedTechId: primaryTechId,       // 👈 Yahan se dynamic ID CheckoutScreen me jayegi
-      selectedTechName: primaryTechName    // 👈 Yahan se dynamic Name CheckoutScreen me jayega
+      selectedTechId: primaryTechId,       
+      selectedTechName: primaryTechName    
     });
   };
 
@@ -136,7 +123,6 @@ export default function ServiceSelectionScreen({ navigation, route }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
       
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
@@ -163,20 +149,26 @@ export default function ServiceSelectionScreen({ navigation, route }) {
                   onPress={() => handleServiceClick(item)}
                   activeOpacity={0.7}
                 >
-                  <View style={[styles.iconBox, { backgroundColor: item.bg || '#EFF6FF' }]}>
-                    <MaterialIcons name={item.icon || 'build'} size={28} color={item.color || '#2563EB'} />
+                  <View style={[styles.iconBox, { backgroundColor: isSelected ? '#EFF6FF' : '#F8FAFC' }]}>
+                    {/* 🚀 Image Rendering Here */}
+                    {item.image ? (
+                      <Image source={{ uri: item.image }} style={styles.serviceImage} resizeMode="contain" />
+                    ) : (
+                      <MaterialIcons name="build" size={28} color={isSelected ? '#2563EB' : '#94A3B8'} />
+                    )}
                   </View>
+                  
                   <Text style={styles.serviceName}>{item.title}</Text>
                   
                   {isSelected ? (
-                    <Text style={styles.priceTextSelected}>Selected: ₹{cartItem.price}</Text>
+                    <Text style={styles.priceTextSelected}>₹{cartItem.price}</Text>
                   ) : (
-                    <Text style={styles.compareLinkText}>Compare Prices ➔</Text>
+                    <Text style={styles.compareLinkText}>View Prices ➔</Text>
                   )}
 
                   {isSelected && (
                     <TouchableOpacity style={styles.removeBadge} onPress={() => removeServiceFromCart(item.id)}>
-                      <Ionicons name="close-circle" size={20} color="#EF4444" />
+                      <Ionicons name="close-circle" size={24} color="#EF4444" />
                     </TouchableOpacity>
                   )}
                 </TouchableOpacity>
@@ -186,12 +178,12 @@ export default function ServiceSelectionScreen({ navigation, route }) {
         )}
       </ScrollView>
 
-      {/* 🏪 VENDOR COMPARISON POPUP */}
+      {/* VENDOR POPUP (Same as before) */}
       {showVendorPopup && (
         <View style={styles.popupOverlay}>
           <View style={styles.popupContent}>
             <View style={styles.popupHeader}>
-              <Text style={styles.popupTitle}>Compare Vendors ({activeService?.title})</Text>
+              <Text style={styles.popupTitle}>Prices for {activeService?.title}</Text>
               <TouchableOpacity onPress={() => setShowVendorPopup(false)}>
                 <Ionicons name="close" size={24} color="#0F172A" />
               </TouchableOpacity>
@@ -219,7 +211,7 @@ export default function ServiceSelectionScreen({ navigation, route }) {
                     <View style={styles.vendorRight}>
                       <Text style={styles.vendorPrice}>₹{item.offeringPrice}</Text>
                       <TouchableOpacity style={styles.selectVendorBtn} onPress={() => selectVendorForService(item)}>
-                        <Text style={styles.selectVendorText}>Choose</Text>
+                        <Text style={styles.selectVendorText}>Select</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -231,7 +223,6 @@ export default function ServiceSelectionScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* BOTTOM ACTION BAR */}
       {cart.length > 0 && !showVendorPopup && (
         <View style={styles.bottomBar}>
           <View>
@@ -260,17 +251,21 @@ const styles = StyleSheet.create({
   
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   serviceCard: { width: '48%', backgroundColor: '#FFF', borderRadius: 20, padding: 15, marginBottom: 15, alignItems: 'center', borderWidth: 2, borderColor: '#F1F5F9', position: 'relative' },
-  activeCard: { borderColor: '#2563EB', backgroundColor: '#F0F7FF' },
-  iconBox: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  serviceName: { fontSize: 13, fontWeight: '700', color: '#0F172A', textAlign: 'center', marginBottom: 8, minHeight: 35 },
-  compareLinkText: { fontSize: 13, fontWeight: '700', color: '#2563EB' },
-  priceTextSelected: { fontSize: 14, fontWeight: '900', color: '#059669' },
-  removeBadge: { position: 'absolute', top: 8, right: 8 },
+  activeCard: { borderColor: '#2563EB', backgroundColor: '#F8FAFC' },
+  
+  /* 🚀 Image Styling */
+  iconBox: { width: 70, height: 70, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+  serviceImage: { width: '75%', height: '75%' },
+  
+  serviceName: { fontSize: 14, fontWeight: '800', color: '#0F172A', textAlign: 'center', marginBottom: 8, minHeight: 35 },
+  compareLinkText: { fontSize: 13, fontWeight: '700', color: '#64748B' },
+  priceTextSelected: { fontSize: 15, fontWeight: '900', color: '#059669' },
+  removeBadge: { position: 'absolute', top: -5, right: -5, backgroundColor: '#FFF', borderRadius: 12 },
   
   popupOverlay: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'flex-end', zIndex: 10 },
   popupContent: { backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: height * 0.6 },
   popupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  popupTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  popupTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
   emptyVendors: { padding: 40, alignItems: 'center' },
   emptyVendorText: { color: '#64748B', fontWeight: '600', textAlign: 'center' },
   

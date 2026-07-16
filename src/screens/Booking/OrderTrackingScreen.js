@@ -10,12 +10,13 @@ import { db } from '../../services/firebaseConfig';
 import { colors } from '../../theme/colors';
 
 export default function OrderTrackingScreen({ navigation, route }) {
-  const { orderId } = route.params || {};
+  // 🚀 Determine Type: Service or Product
+  const { orderId, type = 'Service' } = route.params || {};
+  
   const [order, setOrder] = useState(null);
-  const [orderDocId, setOrderDocId] = useState(null); // Firebase Document ID for updating
+  const [orderDocId, setOrderDocId] = useState(null); 
   const [loading, setLoading] = useState(true);
   
-  // Technician (Shop) Details State
   const [techProfile, setTechProfile] = useState(null);
 
   // 🚀 Cancellation States
@@ -27,42 +28,54 @@ export default function OrderTrackingScreen({ navigation, route }) {
   const cancelFaqs = [
     'Changed my mind', 
     'Got a better price elsewhere', 
-    'Technician taking too long', 
+    'Taking too long', 
     'Booked by mistake', 
     'Other'
   ];
 
+  // 🚀 Fetch Logic based on Type
   useEffect(() => {
     if (!orderId) return;
-    const q = query(collection(db, 'bookings'), where('orderId', '==', orderId));
-    
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
-      if (!snapshot.empty) {
-        const docSnap = snapshot.docs[0];
-        const orderData = docSnap.data();
-        setOrder(orderData);
-        setOrderDocId(docSnap.id); // Save document ID for updates
 
-        // Fetch Technician Profile dynamically if assigned
-        if (orderData.technicianId && orderData.technicianStatus !== 'Pending') {
-          try {
-            const techRef = doc(db, 'technicians', orderData.technicianId);
-            const techSnap = await getDoc(techRef);
-            if (techSnap.exists()) {
-              setTechProfile(techSnap.data());
+    if (type === 'Product') {
+      // Fetch Product Order by Document ID
+      const docRef = doc(db, 'product_orders', orderId);
+      const unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+          setOrder(docSnap.data());
+          setOrderDocId(docSnap.id);
+        }
+        setLoading(false);
+      });
+      return () => unsubscribe();
+      
+    } else {
+      // Fetch Service Booking by orderId string
+      const q = query(collection(db, 'bookings'), where('orderId', '==', orderId));
+      const unsubscribe = onSnapshot(q, async (snapshot) => {
+        if (!snapshot.empty) {
+          const docSnap = snapshot.docs[0];
+          const orderData = docSnap.data();
+          setOrder(orderData);
+          setOrderDocId(docSnap.id);
+
+          if (orderData.technicianId && orderData.technicianStatus !== 'Pending') {
+            try {
+              const techRef = doc(db, 'technicians', orderData.technicianId);
+              const techSnap = await getDoc(techRef);
+              if (techSnap.exists()) setTechProfile(techSnap.data());
+            } catch (error) {
+              console.error("Error fetching tech profile:", error);
             }
-          } catch (error) {
-            console.error("Error fetching technician profile:", error);
           }
         }
-      }
-      setLoading(false);
-    });
-    
-    return () => unsubscribe();
-  }, [orderId]);
+        setLoading(false);
+      });
+      return () => unsubscribe();
+    }
+  }, [orderId, type]);
 
-  // 🚀 User Order Cancel Function
+  // 🚀 Cancel Logic for Both Types
   const handleCancelOrder = async () => {
     if (!cancelNote.trim()) {
       Alert.alert("Note Required", "Please provide a short note/reason for cancellation.");
@@ -71,7 +84,8 @@ export default function OrderTrackingScreen({ navigation, route }) {
 
     setCancelling(true);
     try {
-      await updateDoc(doc(db, 'bookings', orderDocId), {
+      const collectionName = type === 'Product' ? 'product_orders' : 'bookings';
+      await updateDoc(doc(db, collectionName, orderDocId), {
         status: 'Cancelled',
         cancelledBy: 'User',
         cancelReason: `${cancelReason} - ${cancelNote}`
@@ -92,26 +106,31 @@ export default function OrderTrackingScreen({ navigation, route }) {
     );
   }
 
-  // Exact Steps Logic to maintain old flow
-  const steps = [
+  // 🚀 Dynamic Steps based on Type
+  const serviceSteps = [
     { id: 'Order Placed', title: 'Order Placed', icon: 'receipt-long' },
     { id: 'Technician Assigned', title: 'Technician Assigned', icon: 'person-pin' },
     { id: 'Repair In-Progress', title: 'Repair In-Progress', icon: 'build' },
     { id: 'Completed', title: 'Completed', icon: 'check-circle' }
   ];
 
-  // If order is cancelled, we stop the timeline tracking index
+  const productSteps = [
+    { id: 'Pending', title: 'Order Placed', icon: 'receipt-long' },
+    { id: 'Shipped', title: 'Shipped', icon: 'local-shipping' },
+    { id: 'Delivered', title: 'Delivered', icon: 'check-circle' }
+  ];
+
+  const steps = type === 'Product' ? productSteps : serviceSteps;
   const isCancelled = order?.status === 'Cancelled';
   const currentStatusIndex = isCancelled ? -1 : steps.findIndex(s => s.id.toLowerCase() === order?.status?.toLowerCase());
 
-  // Direct Communication Handlers
-  const handleCall = () => {
-    if (techProfile?.mobileNo) Linking.openURL(`tel:${techProfile.mobileNo}`);
-  };
+  // Contact Handlers
+  const handleCall = () => { if (techProfile?.mobileNo) Linking.openURL(`tel:${techProfile.mobileNo}`); };
+  const handleEmail = () => { if (techProfile?.email) Linking.openURL(`mailto:${techProfile.email}`); };
 
-  const handleEmail = () => {
-    if (techProfile?.email) Linking.openURL(`mailto:${techProfile.email}`);
-  };
+  // Helper variables for UI
+  const displayId = type === 'Product' ? `#ORD-${orderDocId?.substring(0,6).toUpperCase()}` : order?.orderId;
+  const displayTitle = type === 'Product' ? order?.productDetails?.name : `${order?.brandName} ${order?.modelName}`;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -121,7 +140,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Track Order</Text>
+        <Text style={styles.headerTitle}>Track {type === 'Product' ? 'Order' : 'Service'}</Text>
         <View style={{width: 44}} />
       </View>
 
@@ -129,9 +148,9 @@ export default function OrderTrackingScreen({ navigation, route }) {
         
         {/* Order Info Header */}
         <View style={styles.orderHeader}>
-          <View>
-            <Text style={styles.orderIdText}>{order?.orderId}</Text>
-            <Text style={styles.deviceText}>{order?.brandName} {order?.modelName}</Text>
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={styles.orderIdText}>{displayId}</Text>
+            <Text style={styles.deviceText} numberOfLines={2}>{displayTitle}</Text>
           </View>
           <View style={[styles.statusBadge, isCancelled && styles.statusBadgeCancelled]}>
             <Text style={[styles.statusText, isCancelled && styles.statusTextCancelled]}>
@@ -140,13 +159,12 @@ export default function OrderTrackingScreen({ navigation, route }) {
           </View>
         </View>
 
-        {/* 🚀 NEW: Cancellation Highlight Banner */}
         {isCancelled && (
           <View style={styles.cancelledBanner}>
             <Ionicons name="warning" size={24} color="#EF4444" />
             <View style={{ flex: 1, marginLeft: 10 }}>
               <Text style={styles.cancelledTitle}>
-                Order Cancelled by {order?.cancelledBy === 'User' ? 'You' : 'Technician'}
+                Cancelled by {order?.cancelledBy === 'User' ? 'You' : (type === 'Product' ? 'Admin' : 'Technician')}
               </Text>
               <Text style={styles.cancelledReason}>
                 Reason: {order?.cancelReason || 'No reason provided.'}
@@ -155,7 +173,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* Live Timeline Component (Hidden if Cancelled) */}
+        {/* Live Timeline */}
         {!isCancelled && (
           <View style={styles.timelineContainer}>
             {steps.map((step, index) => {
@@ -178,8 +196,8 @@ export default function OrderTrackingScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* Shop / Technician Transparency Details Card */}
-        {techProfile && (
+        {/* Tech Details only for Services */}
+        {type === 'Service' && techProfile && !isCancelled && (
           <View style={styles.shopCard}>
             <View style={styles.shopHeader}>
               <View style={styles.shopAvatar}>
@@ -196,12 +214,12 @@ export default function OrderTrackingScreen({ navigation, route }) {
                 <Ionicons name="location" size={16} color="#64748B" />
                 <Text style={styles.detailText}>{techProfile.shopAddress || 'Address not provided'}</Text>
               </View>
-              {techProfile.email ? (
+              {techProfile.email && (
                 <View style={styles.detailRow}>
                   <Ionicons name="mail" size={16} color="#64748B" />
                   <Text style={styles.detailText}>{techProfile.email}</Text>
                 </View>
-              ) : null}
+              )}
             </View>
 
             <View style={styles.actionRow}>
@@ -218,21 +236,21 @@ export default function OrderTrackingScreen({ navigation, route }) {
         )}
       </ScrollView>
 
-      {/* 🚀 NEW: Cancel Button (Fixed at Bottom) */}
-      {!isCancelled && order?.status !== 'Completed' && (
+      {/* Cancel Button */}
+      {!isCancelled && order?.status !== 'Completed' && order?.status !== 'Delivered' && (
         <View style={styles.bottomCancelBar}>
           <TouchableOpacity style={styles.cancelOrderBtn} onPress={() => setShowCancelModal(true)}>
-            <Text style={styles.cancelOrderText}>Cancel Order</Text>
+            <Text style={styles.cancelOrderText}>Cancel {type === 'Product' ? 'Order' : 'Service'}</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* 🚀 NEW: Cancellation Modal */}
+      {/* Cancellation Modal */}
       <Modal visible={showCancelModal} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Cancel Order</Text>
+              <Text style={styles.modalTitle}>Cancel {type === 'Product' ? 'Order' : 'Booking'}</Text>
               <TouchableOpacity onPress={() => setShowCancelModal(false)}>
                 <Ionicons name="close" size={24} color="#0F172A" />
               </TouchableOpacity>
@@ -240,7 +258,6 @@ export default function OrderTrackingScreen({ navigation, route }) {
             
             <Text style={styles.modalSubtitle}>Please let us know why you are cancelling:</Text>
             
-            {/* FAQ Reasons */}
             <View style={styles.reasonContainer}>
               {cancelFaqs.map((faq, index) => (
                 <TouchableOpacity 
@@ -268,11 +285,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
               onPress={handleCancelOrder}
               disabled={cancelling}
             >
-              {cancelling ? (
-                <ActivityIndicator color="#FFF" size="small" />
-              ) : (
-                <Text style={styles.confirmCancelText}>Confirm Cancellation</Text>
-              )}
+              {cancelling ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.confirmCancelText}>Confirm Cancellation</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -293,23 +306,22 @@ const styles = StyleSheet.create({
   orderIdText: { fontSize: 14, fontWeight: '800', color: '#64748B', marginBottom: 4 },
   deviceText: { fontSize: 18, fontWeight: '900', color: '#0F172A' },
   statusBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  statusText: { fontSize: 12, fontWeight: '800', color: '#2563EB' },
+  statusText: { fontSize: 12, fontWeight: '800', color: '#2563EB', textTransform: 'uppercase' },
   
-  // 🚀 Cancelled Banner Styles
   statusBadgeCancelled: { backgroundColor: '#FEE2E2' },
   statusTextCancelled: { color: '#EF4444' },
-  cancelledBanner: { flexDirection: 'row', backgroundColor: '#FEF2F2', p: 15, padding: 15, borderRadius: 16, borderWidth: 1, borderColor: '#FECACA', marginBottom: 20, alignItems: 'center' },
+  cancelledBanner: { flexDirection: 'row', backgroundColor: '#FEF2F2', padding: 15, borderRadius: 16, borderWidth: 1, borderColor: '#FECACA', marginBottom: 20, alignItems: 'center' },
   cancelledTitle: { fontSize: 14, fontWeight: '900', color: '#991B1B' },
   cancelledReason: { fontSize: 13, color: '#DC2626', marginTop: 4, fontWeight: '500' },
 
   timelineContainer: { backgroundColor: '#FFF', padding: 25, borderRadius: 24, marginBottom: 25, borderWidth: 1, borderColor: '#F1F5F9' },
   step: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  iconBox: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  iconBox: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
   iconActive: { backgroundColor: '#2563EB' },
   iconInactive: { backgroundColor: '#F1F5F9' },
   stepTitle: { marginLeft: 15, fontSize: 14, fontWeight: '800', color: '#94A3B8' },
   textActive: { color: '#0F172A' },
-  connector: { position: 'absolute', left: 19, top: 40, width: 2, height: 20, backgroundColor: '#F1F5F9' },
+  connector: { position: 'absolute', left: 19, top: 35, width: 2, height: 35, backgroundColor: '#F1F5F9', zIndex: 1 },
   connActive: { backgroundColor: '#2563EB' },
   
   shopCard: { backgroundColor: '#FFF', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#F1F5F9' },
@@ -326,12 +338,10 @@ const styles = StyleSheet.create({
   actionBtnEmail: { flex: 1, flexDirection: 'row', backgroundColor: '#EFF6FF', paddingVertical: 12, borderRadius: 14, justifyContent: 'center', alignItems: 'center', gap: 6 },
   actionBtnTextEmail: { color: colors.primary, fontSize: 14, fontWeight: 'bold' },
 
-  // 🚀 Cancel Button Styles
   bottomCancelBar: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#E2E8F0', paddingBottom: Platform.OS === 'ios' ? 30 : 20 },
   cancelOrderBtn: { backgroundColor: '#FEF2F2', paddingVertical: 16, borderRadius: 16, alignItems: 'center', borderWidth: 1, borderColor: '#FECACA' },
   cancelOrderText: { color: '#EF4444', fontSize: 16, fontWeight: '800' },
 
-  // 🚀 Modal Styles
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },

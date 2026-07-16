@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
   Platform, StatusBar, ScrollView, TextInput, Dimensions,
-  ActivityIndicator
+  ActivityIndicator, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -13,7 +13,6 @@ import { db } from '../../services/firebaseConfig';
 
 const { width } = Dimensions.get('window');
 
-// 🌟 Premium Soft Shadows
 const shadowStyle = Platform.select({
   ios: { shadowColor: '#94A3B8', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 12 },
   android: { elevation: 5, shadowColor: '#94A3B8' },
@@ -21,17 +20,13 @@ const shadowStyle = Platform.select({
 });
 
 export default function ModelSelectionScreen({ navigation, route }) {
-  // 🚀 Get brand info passed from previous screen
   const selectedBrandId = route.params?.brandId; 
   const selectedBrandName = route.params?.brandName || 'Selected Brand'; 
   
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // 🚀 Firebase States
   const [models, setModels] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 🚀 REAL-TIME FETCH FROM FIREBASE
   useEffect(() => {
     if (!selectedBrandId) {
       setLoading(false);
@@ -39,8 +34,6 @@ export default function ModelSelectionScreen({ navigation, route }) {
     }
 
     setLoading(true);
-    
-    // Query: Fetch from 'master_models' collection where brandId matches the clicked brand
     const q = query(
       collection(db, 'master_models'), 
       where('brandId', '==', selectedBrandId)
@@ -61,7 +54,6 @@ export default function ModelSelectionScreen({ navigation, route }) {
     return () => unsubscribe();
   }, [selectedBrandId]);
 
-  // 🔍 Real-time Search Logic
   const filteredModels = models.filter(model => 
     model.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -70,7 +62,6 @@ export default function ModelSelectionScreen({ navigation, route }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
       
-      {/* 🔙 PREMIUM HEADER */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
@@ -80,7 +71,6 @@ export default function ModelSelectionScreen({ navigation, route }) {
       </View>
 
       <View style={styles.searchSection}>
-        {/* 🔍 SEARCH BAR FIXED AT TOP */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={22} color="#94A3B8" />
           <TextInput 
@@ -106,11 +96,7 @@ export default function ModelSelectionScreen({ navigation, route }) {
       {loading ? (
         <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 50 }} />
       ) : (
-        <ScrollView 
-          showsVerticalScrollIndicator={false} 
-          contentContainerStyle={styles.scrollContent}
-          style={styles.scrollView}
-        >
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.gridContainer}>
             {filteredModels.length === 0 ? (
               <View style={styles.emptyState}>
@@ -122,7 +108,6 @@ export default function ModelSelectionScreen({ navigation, route }) {
                 <TouchableOpacity 
                   key={model.id} 
                   style={[styles.modelCard, shadowStyle]}
-                  // 🚀 NAVIGATION: Pass modelId to fetch specific services next
                   onPress={() => navigation.navigate('ServiceSelection', { 
                     modelId: model.id, 
                     modelName: model.name,
@@ -131,16 +116,16 @@ export default function ModelSelectionScreen({ navigation, route }) {
                   activeOpacity={0.8}
                 >
                   <View style={styles.modelIconBox}>
-                    <Ionicons name="phone-portrait-outline" size={32} color="#2563EB" />
+                    {/* 🚀 Image Rendering Here */}
+                    {model.image ? (
+                      <Image source={{ uri: model.image }} style={styles.modelImage} resizeMode="contain" />
+                    ) : (
+                      <Ionicons name="phone-portrait-outline" size={32} color="#94A3B8" />
+                    )}
                   </View>
                   <View style={styles.modelInfo}>
                     <Text style={styles.brandTag}>{selectedBrandName}</Text>
                     <Text style={styles.modelName} numberOfLines={2}>{model.name}</Text>
-                    {model.series && (
-                      <View style={styles.seriesPill}>
-                        <Text style={styles.seriesText}>{model.series}</Text>
-                      </View>
-                    )}
                   </View>
                 </TouchableOpacity>
               ))
@@ -154,33 +139,25 @@ export default function ModelSelectionScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
-  
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15 },
   backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
   headerTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
-  
   searchSection: { paddingHorizontal: 20 },
-
-  /* SEARCH BAR */
   searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 14, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 20, ...Platform.select({ web: { outlineStyle: 'none' } }) },
   searchInput: { flex: 1, marginLeft: 10, fontSize: 15, color: '#0F172A', fontWeight: '600', outlineStyle: 'none' },
-  
   sectionTitle: { fontSize: 16, fontWeight: '800', color: '#475569', marginBottom: 15 },
-  
-  /* SCROLL & GRID FIXES */
-  scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 50 },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   
-  modelCard: { width: '48%', backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 15, borderWidth: 1, borderColor: '#F1F5F9' },
-  modelIconBox: { width: 50, height: 50, borderRadius: 14, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-  modelInfo: { flex: 1 },
-  brandTag: { fontSize: 10, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 2 },
-  modelName: { fontSize: 14, fontWeight: '800', color: '#0F172A', marginBottom: 8, lineHeight: 18 },
+  modelCard: { width: '48%', backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 15, borderWidth: 1, borderColor: '#F1F5F9', alignItems: 'center' },
   
-  seriesPill: { alignSelf: 'flex-start', backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  seriesText: { fontSize: 10, fontWeight: '700', color: '#475569' },
-
+  /* 🚀 Image Styling */
+  modelIconBox: { width: 80, height: 80, borderRadius: 16, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', marginBottom: 15, borderWidth: 1, borderColor: '#F1F5F9' },
+  modelImage: { width: '85%', height: '85%' },
+  
+  modelInfo: { alignItems: 'center', width: '100%' },
+  brandTag: { fontSize: 10, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 4 },
+  modelName: { fontSize: 14, fontWeight: '800', color: '#0F172A', textAlign: 'center', lineHeight: 18 },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 40, width: '100%' },
   emptyStateText: { fontSize: 14, color: '#94A3B8', fontWeight: '600', marginTop: 10 }
 });
