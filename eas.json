@@ -10,9 +10,32 @@
     "preview": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAxAbK8CqYFBNAG_9TJkKx6cjgsV4I2DN0",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "fixit-pro-c9072.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "fixit-pro-c9072",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "fixit-pro-c9072.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "23592787650",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:23592787650:web:e98034dd63cc271ca4e55b",
+        "EXPO_PUBLIC_IMAGEKIT_URL_ENDPOINT": "https://ik.imagekit.io/esuu73cdn",
+        "EXPO_PUBLIC_IMAGEKIT_PUBLIC_KEY": "public_fmFrXf3YE/OcyFK1TEdUbQG+KLM=",
+        "EXPO_PUBLIC_IMAGEKIT_PRIVATE_KEY": "private_x77JBMB4vB985OM8bOdAhUEoxW8="
       }
     },
-    "production": {}
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAxAbK8CqYFBNAG_9TJkKx6cjgsV4I2DN0",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "fixit-pro-c9072.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "fixit-pro-c9072",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "fixit-pro-c9072.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "23592787650",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:23592787650:web:e98034dd63cc271ca4e55b",
+        "EXPO_PUBLIC_IMAGEKIT_URL_ENDPOINT": "https://ik.imagekit.io/esuu73cdn",
+        "EXPO_PUBLIC_IMAGEKIT_PUBLIC_KEY": "public_fmFrXf3YE/OcyFK1TEdUbQG+KLM=",
+        "EXPO_PUBLIC_IMAGEKIT_PRIVATE_KEY": "private_x77JBMB4vB985OM8bOdAhUEoxW8="
+      }
+    }
   },
   "submit": {
     "production": {}

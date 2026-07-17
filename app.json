@@ -26,6 +26,16 @@
       "eas": {
         "projectId": "2d8e01e3-5f18-4b40-8e38-ddff14507a58"
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you choose images.",
+          "cameraPermission": "The app accesses your camera to let you take photos."
+        }
+      ],
+      "expo-font"
+    ]
   }
 }

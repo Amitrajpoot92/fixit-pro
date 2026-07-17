@@ -1,46 +1,35 @@
-// src/navigation/AppNavigator.js
 import React from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { createStackNavigator } from '@react-navigation/stack';
-
-// 🧠 Auth Context Import
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme/colors';
 
 // Screens
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
-import BottomTabNavigator from './BottomTabNavigator'; 
+import BottomTabNavigator from './BottomTabNavigator';
 import DeviceSelectionScreen from '../screens/Booking/DeviceSelectionScreen';
 import ModelSelectionScreen from '../screens/Booking/ModelSelectionScreen';
-import ServiceSelectionScreen from '../screens/Booking/ServiceSelectionScreen'; 
-import CheckoutScreen from '../screens/Booking/CheckoutScreen'; 
+import ServiceSelectionScreen from '../screens/Booking/ServiceSelectionScreen';
+import CheckoutScreen from '../screens/Booking/CheckoutScreen';
 import PaymentSelectionScreen from '../screens/Booking/PaymentSelectionScreen';
 import OrderSuccessScreen from '../screens/Booking/OrderSuccessScreen';
 import OrderTrackingScreen from '../screens/Booking/OrderTrackingScreen';
-
-// 🚀 Profile Module Imports
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import AddressScreen from '../screens/profile/AddressScreen';
 import ReferAndEarnScreen from '../screens/profile/ReferAndEarnScreen';
 import OffersScreen from '../screens/profile/OffersScreen';
 import SupportScreen from '../screens/profile/SupportScreen';
 import SettingsScreen from '../screens/profile/SettingsScreen';
-
-// 🚀 Wallet Module Import
 import WalletScreen from '../screens/wallet/WalletScreen';
-
-// 🚀 Knowledge Screens Imports
 import PickupDropInfo from '../screens/knowledge/PickupDropInfo';
 import HomeServiceInfo from '../screens/knowledge/HomeServiceInfo';
-
-// 🚀 Accessories Screens Imports
 import ProductsMainScreen from '../screens/accessories/ProductsMainScreen';
 import ProductDetailScreen from '../screens/accessories/ProductDetailScreen';
 import ProductCheckoutScreen from '../screens/accessories/ProductCheckoutScreen';
 import CartScreen from '../screens/accessories/CartScreen';
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
   const { loading } = useAuth();
@@ -54,7 +43,13 @@ export default function AppNavigator() {
   }
 
   return (
-    <Stack.Navigator initialRouteName="MainTabs" screenOptions={{ headerShown: false }}>
+    <Stack.Navigator 
+      initialRouteName="MainTabs" 
+      screenOptions={{ 
+        headerShown: false,
+        animation: 'slide_from_right' // 👈 Smoother performance in production
+      }}
+    >
       <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />

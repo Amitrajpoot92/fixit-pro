@@ -1,5 +1,6 @@
 // App.js 
 import 'react-native-gesture-handler'; // 🚀 CRITICAL FIX: Ye LINE 1 par hi hona chahiye!
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import React from 'react';
 import { Platform, LogBox } from 'react-native'; 
 import { SafeAreaProvider } from 'react-native-safe-area-context'; 
@@ -37,7 +38,8 @@ export default function App() {
 
   return (
     // 🚀 SafeAreaProvider se wrap karna bohot zaroori hai native app ke liye
-    <SafeAreaProvider> 
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider> 
       {/* 🧠 App ka Dimaag (Auth) sabse upar laga diya */}
       <AuthProvider>
         <TabVisibilityProvider>
@@ -47,6 +49,7 @@ export default function App() {
           </NavigationContainer>
         </TabVisibilityProvider>
       </AuthProvider>
-    </SafeAreaProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
