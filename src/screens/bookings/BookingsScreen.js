@@ -82,6 +82,7 @@ export default function BookingsScreen() {
             price: data.totalAmount ? `₹${data.totalAmount}` : 'Pending',
             proName: data.technicianName || 'Unassigned',
             proRating: data.technicianRating || null,
+            paymentMode: data.paymentMode || 'Offline', // 🚀 NEW: Payment Mode Added
             bg: '#D1FAE5',
             color: '#10B981'
           });
@@ -169,10 +170,32 @@ export default function BookingsScreen() {
                       <Text style={styles.priceText}>{booking.price}</Text>
                     </View>
                     <Text style={styles.serviceName} numberOfLines={1}>{booking.service}</Text>
-                    <View style={styles.timeRow}>
-                      <MaterialIcons name="schedule" size={14} color="#64748B" />
-                      <Text style={styles.timeText}>{booking.time}</Text>
+                    
+                    <View style={styles.infoDetailsRow}>
+                      <View style={styles.timeRow}>
+                        <MaterialIcons name="schedule" size={14} color="#64748B" />
+                        <Text style={styles.timeText}>{booking.time}</Text>
+                      </View>
+                      
+                      {/* 🚀 DYNAMIC PAYMENT BADGE */}
+                      <View style={[
+                        styles.paymentBadge, 
+                        booking.paymentMode === 'Online' ? styles.badgePaid : styles.badgeCod
+                      ]}>
+                        <MaterialIcons 
+                          name={booking.paymentMode === 'Online' ? "verified" : "payments"} 
+                          size={12} 
+                          color={booking.paymentMode === 'Online' ? "#15803D" : "#B45309"} 
+                        />
+                        <Text style={[
+                          styles.paymentBadgeText, 
+                          booking.paymentMode === 'Online' ? styles.textPaid : styles.textCod
+                        ]}>
+                          {booking.paymentMode === 'Online' ? 'PRE-PAID' : 'COD'}
+                        </Text>
+                      </View>
                     </View>
+
                   </View>
                 </View>
 
@@ -247,9 +270,19 @@ const styles = StyleSheet.create({
   priceText: { fontSize: 16, fontWeight: '900', color: '#059669' },
   
   serviceName: { fontSize: 16, fontWeight: '800', color: '#0F172A', marginVertical: 4 },
+  
+  // 🚀 Info Row for Time and Badge
+  infoDetailsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
   timeRow: { flexDirection: 'row', alignItems: 'center' },
   timeText: { fontSize: 12, color: '#475569', fontWeight: '700', marginLeft: 4 },
   
+  paymentBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, gap: 3 },
+  badgePaid: { backgroundColor: '#DCFCE7' },
+  badgeCod: { backgroundColor: '#FEF3C7' },
+  paymentBadgeText: { fontSize: 10, fontWeight: '800' },
+  textPaid: { color: '#15803D' },
+  textCod: { color: '#B45309' },
+
   proBanner: { backgroundColor: '#F8FAFC', borderRadius: 14, padding: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
   proAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   proAvatarText: { fontSize: 16, fontWeight: '800', color: '#475569' },
@@ -266,7 +299,7 @@ const styles = StyleSheet.create({
   actionBtn: { paddingVertical: 12, paddingHorizontal: 20, borderRadius: 12, alignItems: 'center' },
   btnSoft: { backgroundColor: '#F1F5F9' },
   btnSoftText: { color: '#334155', fontSize: 13, fontWeight: '800' },
-  btnPrimary: { backgroundColor: '#10B981' }, // Home Visit Theme Color
+  btnPrimary: { backgroundColor: '#10B981' }, 
   btnPrimaryText: { color: '#FFF', fontSize: 13, fontWeight: '800' },
   
   emptyState: { alignItems: 'center', marginTop: 100 },

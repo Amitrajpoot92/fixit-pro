@@ -1,138 +1,251 @@
 // src/screens/Booking/PaymentSelectionScreen.js
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
   ScrollView, StatusBar, Platform, ActivityIndicator, Alert 
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { collection, addDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore'; 
+import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'; 
+import { WebView } from 'react-native-webview'; 
+import { encode } from 'base-64'; 
 
-// Firebase & App Imports
 import { db, auth } from '../../services/firebaseConfig';
 import { colors } from '../../theme/colors';
+
+// 🔑 AAPKI LIVE RAZORPAY KEYS YAHAN INTEGRATE HO GAYI HAIN
+const RAZORPAY_KEY_ID = 'rzp_test_TDkSfPEYeOrsUu'; 
+const RAZORPAY_KEY_SECRET = 'JRFXeYF4d88u0q4tHECJbBw6';
 
 export default function PaymentSelectionScreen({ navigation, route }) {
   const [method, setMethod] = useState('upi');
   const [loading, setLoading] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState(null); 
+  
+  // Draft Order States (Security against app crashes)
+  const draftDocId = useRef(null);
+  const draftOrderId = useRef(null);
 
-  // CheckoutScreen se aane wala data
   const amount = route.params?.totalAmount || 0; 
   const brandName = route.params?.brandName || 'Unknown Brand';
   const modelName = route.params?.modelName || 'Unknown Model';
   const selectedServices = route.params?.selectedServices || [];
-  
   const serviceMode = route.params?.serviceMode || 'self';
   const scheduleDate = route.params?.scheduleDate || null;
   const scheduleTime = route.params?.scheduleTime || null;
   const serviceAddress = route.params?.serviceAddress || null; 
-
   const selectedTechId = route.params?.selectedTechId; 
   const selectedTechName = route.params?.selectedTechName;
 
   const paymentOptions = [
-    { id: 'upi', name: 'UPI (GPay, PhonePe, Paytm)', icon: 'account-balance', desc: 'Pay instantly via your favorite UPI app' },
-    { id: 'card', name: 'Credit / Debit Card', icon: 'credit-card', desc: 'All major cards supported' },
+    { id: 'upi', name: 'UPI / Online Payment', icon: 'account-balance', desc: 'Secure & Auto-verified via Razorpay' },
     { id: 'cod', name: 'Cash on Delivery (COD)', icon: 'payments', desc: 'Pay technician after repair' },
   ];
 
-  // ORDER CREATE KARNE KA LOGIC
-  const handlePayment = async () => {
+  // 1️⃣ DRAFT ORDER CREATION
+  const createDraftOrder = async (payMode, payStatus, initialStatus) => {
     const currentUser = auth.currentUser;
     const userId = currentUser?.uid;
+
+    const userDocRef = doc(db, 'users', userId);
+    const userDocSnap = await getDoc(userDocRef);
     
-    if (!userId) {
-      Alert.alert("Login Required", "Please login to complete your booking.");
-      return;
+    let realCustomerName = currentUser.displayName || 'Customer';
+    let realCustomerEmail = currentUser.email || 'guest@example.com';
+    let realCustomerPhone = '';
+
+    if (userDocSnap.exists()) {
+      const userData = userDocSnap.data();
+      if (userData.name) realCustomerName = userData.name;
+      if (userData.email) realCustomerEmail = userData.email;
+      if (userData.phone && userData.phone.trim() !== '') realCustomerPhone = userData.phone;
     }
 
-    if (!selectedTechId) {
-      Alert.alert("Error", "Technician data was lost. Please restart the booking process.");
-      return;
-    }
+    const orderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    setLoading(true);
+    const orderData = {
+      orderId, userId, brandName, modelName, services: selectedServices, totalAmount: amount,
+      paymentMethod: method, 
+      paymentMode: payMode,     
+      paymentStatus: payStatus,
+      transactionId: 'PENDING', 
+      status: initialStatus, 
+      customerName: realCustomerName, customerEmail: realCustomerEmail, customerPhone: realCustomerPhone, 
+      technicianId: selectedTechId, technicianName: selectedTechName, technicianStatus: 'Pending', 
+      serviceMode, scheduleDate, scheduleTime, serviceAddress, createdAt: serverTimestamp(),
+    };
 
+    const docRef = await addDoc(collection(db, 'bookings'), orderData);
+    return { docId: docRef.id, orderId: orderId, customerData: { name: realCustomerName, email: realCustomerEmail, phone: realCustomerPhone } };
+  };
+
+  // 2️⃣ CONFIRM ONLINE ORDER
+  const confirmOnlineOrder = async (docId, displayOrderId, transactionId) => {
     try {
-      // Users collection se data fetch karo
-      const userDocRef = doc(db, 'users', userId);
-      const userDocSnap = await getDoc(userDocRef);
-      
-      let realCustomerName = currentUser.displayName || 'Customer';
-      let realCustomerEmail = currentUser.email || 'N/A';
-      let realCustomerPhone = 'N/A';
-
-      // 1. Check inside Users Collection
-      if (userDocSnap.exists()) {
-        const userData = userDocSnap.data();
-        if (userData.name) realCustomerName = userData.name;
-        if (userData.email) realCustomerEmail = userData.email;
-        
-        // 🚀 BULLETPROOF PHONE CHECK: Har possible key check karega
-        if (userData.phone && userData.phone.trim() !== '') realCustomerPhone = userData.phone;
-        else if (userData.phoneNumber && userData.phoneNumber.trim() !== '') realCustomerPhone = userData.phoneNumber;
-        else if (userData.mobile && userData.mobile.trim() !== '') realCustomerPhone = userData.mobile;
-      }
-
-      // 2. Check Auth Phone Number (Agar Users DB me nahi mila)
-      if (realCustomerPhone === 'N/A' && currentUser.phoneNumber) {
-        realCustomerPhone = currentUser.phoneNumber;
-      }
-
-      // 3. Check inside Selected Address (Agar dono jagah nahi mila)
-      if (realCustomerPhone === 'N/A' && serviceAddress) {
-        if (serviceAddress.phone) realCustomerPhone = serviceAddress.phone;
-        else if (serviceAddress.mobile) realCustomerPhone = serviceAddress.mobile;
-        else if (serviceAddress.phoneNumber) realCustomerPhone = serviceAddress.phoneNumber;
-      }
-
-      const orderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
-
-      const orderData = {
-        orderId,
-        userId,
-        brandName,
-        modelName,
-        services: selectedServices,
-        totalAmount: amount,
-        paymentMethod: method,
-        paymentStatus: method === 'cod' ? 'Pending' : 'Paid',
+      const orderRef = doc(db, 'bookings', docId);
+      await updateDoc(orderRef, {
+        paymentStatus: 'Paid',
         status: 'Order Placed',
-        
-        // REAL DATA SAVED PERMANENTLY HERE
-        customerName: realCustomerName,
-        customerEmail: realCustomerEmail,
-        customerPhone: realCustomerPhone, // Ab ye 100% save hoga
-
-        // Technician Integration
-        technicianId: selectedTechId,
-        technicianName: selectedTechName,
-        technicianStatus: 'Pending', 
-        
-        // Mode & Scheduling
-        serviceMode: serviceMode,     
-        scheduleDate: scheduleDate,   
-        scheduleTime: scheduleTime, 
-        serviceAddress: serviceAddress,
-
-        createdAt: serverTimestamp(),
-      };
-
-      await addDoc(collection(db, 'bookings'), orderData);
-
+        transactionId: transactionId, 
+        updatedAt: serverTimestamp()
+      });
       setLoading(false);
-      navigation.navigate('OrderSuccess', { orderId });
-
+      // 🚀 FIX: Yahan paymentMode: 'Online' pass kar diya taaki success screen par Pre-paid dikhe
+      navigation.navigate('OrderSuccess', { orderId: displayOrderId, paymentMode: 'Online' });
     } catch (error) {
-      console.error("Booking Error: ", error);
-      Alert.alert("Error", "Could not process your booking. Please try again.");
+      Alert.alert("Error", "Payment successful but order update failed. Please contact support.");
       setLoading(false);
     }
   };
 
+  // 3️⃣ PAYMENT BUTTON HANDLER
+  const handlePayment = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser?.uid) return Alert.alert("Login Required", "Please login to complete booking.");
+    if (!selectedTechId) return Alert.alert("Error", "Technician data lost.");
+
+    setLoading(true);
+
+    if (method === 'cod') {
+      try {
+        const draft = await createDraftOrder('Offline', 'Pending', 'Order Placed');
+        setLoading(false);
+        // 🚀 FIX: Yahan paymentMode: 'Offline' pass kar diya COD ke liye
+        navigation.navigate('OrderSuccess', { orderId: draft.orderId, paymentMode: 'Offline' });
+      } catch (error) {
+        Alert.alert("Error", "Could not process COD order.");
+        setLoading(false);
+      }
+    } else {
+      try {
+        const draft = await createDraftOrder('Online', 'Pending', 'Payment_Pending');
+        draftDocId.current = draft.docId;
+        draftOrderId.current = draft.orderId;
+
+        const basicAuth = encode(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
+        
+        let safePhone = draft.customerData.phone;
+        
+        if (safePhone) {
+          safePhone = safePhone.replace(/\D/g, '').slice(-10);
+        }
+
+        if (!safePhone || safePhone.length < 10 || /^(.)\1{9}$/.test(safePhone)) {
+          safePhone = "9812345678"; 
+        }
+
+        const finalAmountInPaise = Math.round(Number(amount) * 100);
+        if (finalAmountInPaise < 100) {
+          Alert.alert("Invalid Amount", "Total amount must be at least ₹1 for online payment.");
+          setLoading(false);
+          return;
+        }
+
+        const response = await fetch('https://api.razorpay.com/v1/payment_links', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${basicAuth}`
+          },
+          body: JSON.stringify({
+            amount: finalAmountInPaise, 
+            currency: "INR",
+            accept_partial: false,
+            reference_id: draftOrderId.current,
+            description: `Payment for FixitPro Booking`,
+            customer: {
+              name: draft.customerData.name || "Customer",
+              email: draft.customerData.email || "guest@example.com",
+              contact: safePhone
+            },
+            notify: { sms: false, email: false },
+            reminder_enable: false,
+            callback_url: "https://fixitpro.com/payment-success",
+            callback_method: "get"
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.short_url) {
+          setPaymentUrl(data.short_url); 
+        } else {
+          const razorpayError = data.error?.description || "Failed to generate payment link via Razorpay API.";
+          Alert.alert("Razorpay Error", razorpayError);
+          setLoading(false);
+        }
+      } catch (error) {
+        Alert.alert("Gateway Error", "Could not connect to Razorpay.");
+        setLoading(false);
+      }
+    }
+  };
+
+  const extractParam = (url, paramName) => {
+    const regex = new RegExp(`[?&]${paramName}=([^&]+)`);
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  };
+
+  // 4️⃣ AUTO VERIFICATION VIA WEBVIEW
+  const handleNavigationStateChange = async (navState) => {
+    const currentUrl = navState.url;
+
+    if (currentUrl.includes('fixitpro.com/payment-success')) {
+      if (currentUrl.includes('razorpay_payment_link_status=paid')) {
+        const razorpayPaymentId = extractParam(currentUrl, 'razorpay_payment_id') || 'Verified_By_Razorpay';
+
+        setPaymentUrl(null); 
+        setLoading(true);
+        
+        if (draftDocId.current && draftOrderId.current) {
+          await confirmOnlineOrder(draftDocId.current, draftOrderId.current, razorpayPaymentId); 
+        } else {
+          Alert.alert("Error", "Order sync failed.");
+          setLoading(false);
+        }
+      } else {
+        setPaymentUrl(null);
+        setLoading(false);
+        if (draftDocId.current) await updateDoc(doc(db, 'bookings', draftDocId.current), { status: 'Payment_Failed' });
+        Alert.alert("Payment Failed", "Transaction could not be completed.");
+      }
+    } else if (currentUrl.includes('payment-failure') || currentUrl.includes('cancel')) {
+      setPaymentUrl(null);
+      setLoading(false);
+      if (draftDocId.current) await updateDoc(doc(db, 'bookings', draftDocId.current), { status: 'Payment_Cancelled' });
+      Alert.alert("Payment Cancelled", "Your transaction was cancelled.");
+    }
+  };
+
+  if (paymentUrl) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF' }}>
+        <View style={styles.webviewHeader}>
+          <TouchableOpacity 
+            style={styles.webviewCloseBtn}
+            onPress={() => {
+              setPaymentUrl(null);
+              setLoading(false);
+              Alert.alert("Cancelled", "You cancelled the payment process.");
+            }}
+          >
+            <Ionicons name="close" size={24} color="#EF4444" />
+            <Text style={styles.webviewCloseText}>Cancel Payment</Text>
+          </TouchableOpacity>
+        </View>
+        <WebView 
+          source={{ uri: paymentUrl }}
+          onNavigationStateChange={handleNavigationStateChange}
+          startInLoadingState={true}
+          renderLoading={() => <ActivityIndicator size="large" color={colors.primary} style={StyleSheet.absoluteFill} />}
+        />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
-      
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} disabled={loading}>
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
@@ -201,5 +314,8 @@ const styles = StyleSheet.create({
   optionDesc: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
   bottomBar: { padding: 20, backgroundColor: '#FFF', borderTopWidth: 1, borderColor: '#E2E8F0', paddingBottom: Platform.OS === 'ios' ? 30 : 20 },
   payBtn: { flexDirection: 'row', backgroundColor: '#2563EB', paddingVertical: 16, borderRadius: 16, justifyContent: 'center', alignItems: 'center', gap: 5 },
-  btnText: { color: '#FFF', fontSize: 16, fontWeight: '800' }
+  btnText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  webviewHeader: { padding: 15, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0', flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 15 },
+  webviewCloseBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  webviewCloseText: { color: '#EF4444', fontWeight: 'bold', marginLeft: 5 }
 });

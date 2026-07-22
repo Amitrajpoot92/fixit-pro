@@ -38,7 +38,6 @@ export default function OrderTrackingScreen({ navigation, route }) {
     if (!orderId) return;
 
     if (type === 'Product') {
-      // Fetch Product Order by Document ID
       const docRef = doc(db, 'product_orders', orderId);
       const unsubscribe = onSnapshot(docRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -50,7 +49,6 @@ export default function OrderTrackingScreen({ navigation, route }) {
       return () => unsubscribe();
       
     } else {
-      // Fetch Service Booking by orderId string
       const q = query(collection(db, 'bookings'), where('orderId', '==', orderId));
       const unsubscribe = onSnapshot(q, async (snapshot) => {
         if (!snapshot.empty) {
@@ -132,6 +130,13 @@ export default function OrderTrackingScreen({ navigation, route }) {
   const displayId = type === 'Product' ? `#ORD-${orderDocId?.substring(0,6).toUpperCase()}` : order?.orderId;
   const displayTitle = type === 'Product' ? order?.productDetails?.name : `${order?.brandName} ${order?.modelName}`;
 
+  // Helper for Address Display
+  const getAddressString = () => {
+    if (!order?.serviceAddress) return 'Address not provided';
+    const { flat, area, landmark, type: addressType } = order.serviceAddress;
+    return `${addressType ? addressType + ' - ' : ''}${flat ? flat + ', ' : ''}${area || ''} ${landmark ? '(' + landmark + ')' : ''}`;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
@@ -144,13 +149,34 @@ export default function OrderTrackingScreen({ navigation, route }) {
         <View style={{width: 44}} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         
         {/* Order Info Header */}
         <View style={styles.orderHeader}>
           <View style={{ flex: 1, paddingRight: 10 }}>
             <Text style={styles.orderIdText}>{displayId}</Text>
             <Text style={styles.deviceText} numberOfLines={2}>{displayTitle}</Text>
+            
+            {/* 🚀 DYNAMIC PAYMENT BADGE IN TRACKING SCREEN */}
+            {!isCancelled && (
+              <View style={[
+                styles.trackingPaymentBadge, 
+                order?.paymentMode === 'Online' ? styles.trackingBadgePaid : styles.trackingBadgeCod
+              ]}>
+                <MaterialIcons 
+                  name={order?.paymentMode === 'Online' ? "verified" : "payments"} 
+                  size={14} 
+                  color={order?.paymentMode === 'Online' ? "#15803D" : "#B45309"} 
+                />
+                <Text style={[
+                  styles.trackingPaymentText, 
+                  order?.paymentMode === 'Online' ? styles.trackingTextPaid : styles.trackingTextCod
+                ]}>
+                  {order?.paymentMode === 'Online' ? 'PRE-PAID ORDER' : 'CASH ON DELIVERY'}
+                </Text>
+              </View>
+            )}
+
           </View>
           <View style={[styles.statusBadge, isCancelled && styles.statusBadgeCancelled]}>
             <Text style={[styles.statusText, isCancelled && styles.statusTextCancelled]}>
@@ -195,6 +221,57 @@ export default function OrderTrackingScreen({ navigation, route }) {
             })}
           </View>
         )}
+
+        {/* 🚀 NEW: ORDER SUMMARY DETAILS CARD */}
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>Order Details</Text>
+          
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryIconBox}><Ionicons name="wallet-outline" size={18} color="#64748B" /></View>
+            <View style={{flex: 1}}>
+              <Text style={styles.summaryLabel}>Total Amount</Text>
+              <Text style={styles.summaryValue}>₹{order?.totalAmount || '0'}</Text>
+            </View>
+          </View>
+
+          {type === 'Service' && (
+            <>
+              <View style={styles.summaryDivider} />
+              
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryIconBox}><Ionicons name="calendar-outline" size={18} color="#64748B" /></View>
+                <View style={{flex: 1}}>
+                  <Text style={styles.summaryLabel}>Schedule</Text>
+                  <Text style={styles.summaryValue}>{order?.scheduleDate} | {order?.scheduleTime}</Text>
+                </View>
+              </View>
+
+              <View style={styles.summaryDivider} />
+              
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryIconBox}><Ionicons name="location-outline" size={18} color="#64748B" /></View>
+                <View style={{flex: 1}}>
+                  <Text style={styles.summaryLabel}>Service Address</Text>
+                  <Text style={styles.summaryValue}>{getAddressString()}</Text>
+                </View>
+              </View>
+            </>
+          )}
+
+          {/* Show Transaction ID if Online */}
+          {order?.paymentMode === 'Online' && order?.transactionId && (
+            <>
+              <View style={styles.summaryDivider} />
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryIconBox}><Ionicons name="shield-checkmark-outline" size={18} color="#64748B" /></View>
+                <View style={{flex: 1}}>
+                  <Text style={styles.summaryLabel}>Transaction ID</Text>
+                  <Text style={styles.summaryValue}>{order?.transactionId}</Text>
+                </View>
+              </View>
+            </>
+          )}
+        </View>
 
         {/* Tech Details only for Services */}
         {type === 'Service' && techProfile && !isCancelled && (
@@ -307,6 +384,13 @@ const styles = StyleSheet.create({
   deviceText: { fontSize: 18, fontWeight: '900', color: '#0F172A' },
   statusBadge: { backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   statusText: { fontSize: 12, fontWeight: '800', color: '#2563EB', textTransform: 'uppercase' },
+
+  // 🚀 New Badge Styles
+  trackingPaymentBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start', marginTop: 8, gap: 4 },
+  trackingBadgePaid: { backgroundColor: '#DCFCE7' },
+  trackingTextPaid: { color: '#15803D', fontWeight: '800', fontSize: 11 },
+  trackingBadgeCod: { backgroundColor: '#FEF3C7' },
+  trackingTextCod: { color: '#B45309', fontWeight: '800', fontSize: 11 },
   
   statusBadgeCancelled: { backgroundColor: '#FEE2E2' },
   statusTextCancelled: { color: '#EF4444' },
@@ -314,7 +398,7 @@ const styles = StyleSheet.create({
   cancelledTitle: { fontSize: 14, fontWeight: '900', color: '#991B1B' },
   cancelledReason: { fontSize: 13, color: '#DC2626', marginTop: 4, fontWeight: '500' },
 
-  timelineContainer: { backgroundColor: '#FFF', padding: 25, borderRadius: 24, marginBottom: 25, borderWidth: 1, borderColor: '#F1F5F9' },
+  timelineContainer: { backgroundColor: '#FFF', padding: 25, borderRadius: 24, marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0' },
   step: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   iconBox: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', zIndex: 2 },
   iconActive: { backgroundColor: '#2563EB' },
@@ -323,8 +407,17 @@ const styles = StyleSheet.create({
   textActive: { color: '#0F172A' },
   connector: { position: 'absolute', left: 19, top: 35, width: 2, height: 35, backgroundColor: '#F1F5F9', zIndex: 1 },
   connActive: { backgroundColor: '#2563EB' },
+
+  // 🚀 Order Summary Styles
+  summaryCard: { backgroundColor: '#FFF', padding: 20, borderRadius: 24, marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0' },
+  summaryTitle: { fontSize: 16, fontWeight: '900', color: '#0F172A', marginBottom: 15 },
+  summaryRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 5 },
+  summaryIconBox: { width: 30, alignItems: 'center', marginRight: 5, paddingTop: 2 },
+  summaryLabel: { fontSize: 12, color: '#64748B', fontWeight: '600', marginBottom: 2 },
+  summaryValue: { fontSize: 14, color: '#0F172A', fontWeight: '700' },
+  summaryDivider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 12 },
   
-  shopCard: { backgroundColor: '#FFF', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#F1F5F9' },
+  shopCard: { backgroundColor: '#FFF', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 20 },
   shopHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
   shopAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
   shopName: { fontSize: 16, fontWeight: '900', color: '#0F172A' },

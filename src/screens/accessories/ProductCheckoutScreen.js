@@ -1,5 +1,5 @@
 // src/screens/accessories/ProductCheckoutScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, ScrollView, 
   TouchableOpacity, Image, Platform, StatusBar, ActivityIndicator, Alert, Modal
@@ -7,22 +7,31 @@ import {
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 
-// 🔥 Firebase Imports
-import { collection, addDoc, serverTimestamp, query, onSnapshot, doc, getDoc, writeBatch } from 'firebase/firestore';
+// 🔥 Firebase & WebView Imports
+import { collection, addDoc, serverTimestamp, query, onSnapshot, doc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebaseConfig';
 import { useAuth } from '../../context/AuthContext'; 
+import { WebView } from 'react-native-webview'; 
+import { encode } from 'base-64'; 
+
+// 🔑 LIVE RAZORPAY KEYS
+const RAZORPAY_KEY_ID = 'rzp_test_TDkSfPEYeOrsUu'; 
+const RAZORPAY_KEY_SECRET = 'JRFXeYF4d88u0q4tHECJbBw6';
 
 export default function ProductCheckoutScreen({ navigation, route }) {
-  // 🚀 Handle Array of Cart Items instead of a single product
   const cartItems = route.params?.cartItems || [];
   const initialTotalAmount = route.params?.totalAmount || 0;
-  
-  const { user } = useAuth(); // Logged in user info
+  const { user } = useAuth(); 
   
   const [paymentMethod, setPaymentMethod] = useState('Online');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   
-  // 🚀 User details & Address states
+  // 🚀 WebView States
+  const [paymentUrl, setPaymentUrl] = useState(null); 
+  const draftDocId = useRef(null);
+  const draftOrderId = useRef(null);
+
+  // User details & Address states
   const [userData, setUserData] = useState(null);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
@@ -31,18 +40,15 @@ export default function ProductCheckoutScreen({ navigation, route }) {
   const deliveryFee = 50;
   const totalAmount = initialTotalAmount + deliveryFee;
 
-  // 🚀 Fetch User Data & Addresses
   useEffect(() => {
     if (!user?.uid) return;
 
-    // Fetch User Profile
     const fetchUserProfile = async () => {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists()) setUserData(userDoc.data());
     };
     fetchUserProfile();
 
-    // Fetch Addresses
     const q = query(collection(db, 'users', user.uid, 'addresses'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const addrs = [];
@@ -63,38 +69,9 @@ export default function ProductCheckoutScreen({ navigation, route }) {
     return () => unsubscribe();
   }, [user]);
 
-  // 🚀 Final Order Placement Logic
-  const handlePlaceOrder = async () => {
-    if (!user) {
-      Alert.alert("Login Required", "Please login to place an order.", [{ text: "OK" }]);
-      return;
-    }
-    if (!selectedAddress) {
-      Alert.alert("Address Required", "Please add a delivery address.");
-      return;
-    }
-
-    setIsPlacingOrder(true);
+  // 🛒 Helper: Clear Cart
+  const clearUserCart = async () => {
     try {
-      // 1. Prepare Order Data
-      const orderData = {
-        userId: user.uid,
-        userName: userData?.name || 'N/A', 
-        userPhone: userData?.mobile || user.phoneNumber || 'N/A', 
-        userEmail: userData?.email || user.email || 'N/A', 
-        productDetails: cartItems, // Save entire cart array
-        deliveryAddress: selectedAddress, 
-        paymentMethod: paymentMethod,
-        totalAmount: totalAmount,
-        status: 'Pending', 
-        orderType: 'Ecommerce', 
-        createdAt: serverTimestamp()
-      };
-
-      // 2. Save Order to Database
-      await addDoc(collection(db, 'product_orders'), orderData);
-      
-      // 3. 🛒 Clear Cart using Batch Write
       const batch = writeBatch(db);
       cartItems.forEach(item => {
         if (item.cartId) {
@@ -103,18 +80,204 @@ export default function ProductCheckoutScreen({ navigation, route }) {
         }
       });
       await batch.commit();
-      
-      Alert.alert('Success! 🎉', 'Your order has been placed successfully.', [
-        { text: "OK", onPress: () => navigation.navigate('ProductsMain') } 
-      ]);
+    } catch (e) {
+      console.error("Error clearing cart: ", e);
+    }
+  };
 
+  // 1️⃣ DRAFT ORDER CREATION
+  const createDraftOrder = async (payMode, initialStatus) => {
+    const orderId = `ORD-P${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const orderData = {
+      orderId: orderId,
+      userId: user.uid,
+      userName: userData?.name || 'Customer', 
+      userPhone: userData?.mobile || user.phoneNumber || '', 
+      userEmail: userData?.email || user.email || 'guest@example.com', 
+      productDetails: cartItems, 
+      deliveryAddress: selectedAddress, 
+      paymentMethod: paymentMethod,
+      paymentMode: payMode,
+      totalAmount: totalAmount,
+      transactionId: 'PENDING',
+      status: initialStatus, 
+      orderType: 'Ecommerce', 
+      createdAt: serverTimestamp()
+    };
+
+    const docRef = await addDoc(collection(db, 'product_orders'), orderData);
+    return { docId: docRef.id, orderId: orderId, phone: orderData.userPhone, email: orderData.userEmail, name: orderData.userName };
+  };
+
+  // 2️⃣ CONFIRM ONLINE ORDER AFTER PAYMENT
+  const confirmOnlineOrder = async (docId, displayOrderId, transactionId) => {
+    try {
+      const orderRef = doc(db, 'product_orders', docId);
+      await updateDoc(orderRef, {
+        paymentStatus: 'Paid',
+        status: 'Pending', // E-commerce initial status
+        transactionId: transactionId, 
+        updatedAt: serverTimestamp()
+      });
+      
+      await clearUserCart();
+      setIsPlacingOrder(false);
+      
+      // 🚀 UPDATED: Navigate to ProductOrderSuccess
+      navigation.navigate('ProductOrderSuccess', { orderId: displayOrderId, paymentMode: 'Online' });
     } catch (error) {
-      console.error("Order Failed: ", error);
-      Alert.alert('Error', 'Failed to place order. Try again.');
-    } finally {
+      Alert.alert("Error", "Payment successful but order sync failed. Contact support.");
       setIsPlacingOrder(false);
     }
   };
+
+  // 3️⃣ PLACE ORDER LOGIC (Main Button Click)
+  const handlePlaceOrder = async () => {
+    if (!user) {
+      Alert.alert("Login Required", "Please login to place an order.");
+      return;
+    }
+    if (!selectedAddress) {
+      Alert.alert("Address Required", "Please add a delivery address.");
+      return;
+    }
+
+    setIsPlacingOrder(true);
+
+    if (paymentMethod === 'COD') {
+      try {
+        const draft = await createDraftOrder('Offline', 'Pending');
+        await clearUserCart();
+        setIsPlacingOrder(false);
+        // 🚀 UPDATED: Navigate to ProductOrderSuccess
+        navigation.navigate('ProductOrderSuccess', { orderId: draft.orderId, paymentMode: 'Offline' });
+      } catch (error) {
+        Alert.alert("Error", "Could not process COD order.");
+        setIsPlacingOrder(false);
+      }
+    } else {
+      // 🚀 ONLINE PAYMENT LOGIC (RAZORPAY)
+      try {
+        const draft = await createDraftOrder('Online', 'Payment_Pending');
+        draftDocId.current = draft.docId;
+        draftOrderId.current = draft.orderId;
+
+        const basicAuth = encode(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
+        
+        let safePhone = draft.phone;
+        if (safePhone) safePhone = safePhone.replace(/\D/g, '').slice(-10);
+        if (!safePhone || safePhone.length < 10 || /^(.)\1{9}$/.test(safePhone)) {
+          safePhone = "9812345678"; 
+        }
+
+        const finalAmountInPaise = Math.round(Number(totalAmount) * 100);
+        if (finalAmountInPaise < 100) {
+          Alert.alert("Invalid Amount", "Total amount must be at least ₹1.");
+          setIsPlacingOrder(false);
+          return;
+        }
+
+        const response = await fetch('https://api.razorpay.com/v1/payment_links', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${basicAuth}`
+          },
+          body: JSON.stringify({
+            amount: finalAmountInPaise, 
+            currency: "INR",
+            accept_partial: false,
+            reference_id: draftOrderId.current,
+            description: `Payment for FixitPro Products`,
+            customer: {
+              name: draft.name || "Customer",
+              email: draft.email || "guest@example.com",
+              contact: safePhone
+            },
+            notify: { sms: false, email: false },
+            reminder_enable: false,
+            callback_url: "https://fixitpro.com/payment-success",
+            callback_method: "get"
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.short_url) {
+          setPaymentUrl(data.short_url); 
+        } else {
+          const razorpayError = data.error?.description || "Failed to generate payment link.";
+          Alert.alert("Razorpay Error", razorpayError);
+          setIsPlacingOrder(false);
+        }
+      } catch (error) {
+        Alert.alert("Gateway Error", "Could not connect to Razorpay.");
+        setIsPlacingOrder(false);
+      }
+    }
+  };
+
+  const extractParam = (url, paramName) => {
+    const regex = new RegExp(`[?&]${paramName}=([^&]+)`);
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  };
+
+  // 4️⃣ AUTO VERIFICATION VIA WEBVIEW
+  const handleNavigationStateChange = async (navState) => {
+    const currentUrl = navState.url;
+
+    if (currentUrl.includes('fixitpro.com/payment-success')) {
+      if (currentUrl.includes('razorpay_payment_link_status=paid')) {
+        const razorpayPaymentId = extractParam(currentUrl, 'razorpay_payment_id') || 'Verified_By_Razorpay';
+        
+        setPaymentUrl(null); 
+        setIsPlacingOrder(true); // Keep loading while syncing
+        
+        if (draftDocId.current && draftOrderId.current) {
+          await confirmOnlineOrder(draftDocId.current, draftOrderId.current, razorpayPaymentId); 
+        }
+      } else {
+        setPaymentUrl(null);
+        setIsPlacingOrder(false);
+        if (draftDocId.current) await updateDoc(doc(db, 'product_orders', draftDocId.current), { status: 'Payment_Failed' });
+        Alert.alert("Payment Failed", "Transaction could not be completed.");
+      }
+    } else if (currentUrl.includes('payment-failure') || currentUrl.includes('cancel')) {
+      setPaymentUrl(null);
+      setIsPlacingOrder(false);
+      if (draftDocId.current) await updateDoc(doc(db, 'product_orders', draftDocId.current), { status: 'Payment_Cancelled' });
+      Alert.alert("Payment Cancelled", "Your transaction was cancelled.");
+    }
+  };
+
+  // 🚀 RENDER WEBVIEW IF PAYMENT LINK IS ACTIVE
+  if (paymentUrl) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF' }}>
+        <View style={styles.webviewHeader}>
+          <TouchableOpacity 
+            style={styles.webviewCloseBtn}
+            onPress={() => {
+              setPaymentUrl(null);
+              setIsPlacingOrder(false);
+              Alert.alert("Cancelled", "You cancelled the payment process.");
+            }}
+          >
+            <Ionicons name="close" size={24} color="#EF4444" />
+            <Text style={styles.webviewCloseText}>Cancel Payment</Text>
+          </TouchableOpacity>
+        </View>
+        <WebView 
+          source={{ uri: paymentUrl }}
+          onNavigationStateChange={handleNavigationStateChange}
+          startInLoadingState={true}
+          renderLoading={() => <ActivityIndicator size="large" color={colors.primary} style={StyleSheet.absoluteFill} />}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -122,7 +285,7 @@ export default function ProductCheckoutScreen({ navigation, route }) {
       
       {/* 🔙 HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} disabled={isPlacingOrder}>
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Checkout</Text>
@@ -152,7 +315,7 @@ export default function ProductCheckoutScreen({ navigation, route }) {
           </View>
         </View>
 
-        {/* 🛍️ ORDER SUMMARY (List of Cart Items) */}
+        {/* 🛍️ ORDER SUMMARY */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Order Summary ({cartItems.length} Items)</Text>
           <View style={styles.summaryCard}>
@@ -180,6 +343,7 @@ export default function ProductCheckoutScreen({ navigation, route }) {
           <TouchableOpacity 
             style={[styles.paymentOption, paymentMethod === 'Online' && styles.paymentOptionActive]}
             onPress={() => setPaymentMethod('Online')}
+            disabled={isPlacingOrder}
           >
             <Ionicons name="card" size={20} color={paymentMethod === 'Online' ? colors.link : '#64748B'} />
             <Text style={[styles.paymentText, paymentMethod === 'Online' && styles.paymentTextActive]}>Pay Online (UPI, Cards)</Text>
@@ -189,6 +353,7 @@ export default function ProductCheckoutScreen({ navigation, route }) {
           <TouchableOpacity 
             style={[styles.paymentOption, paymentMethod === 'COD' && styles.paymentOptionActive]}
             onPress={() => setPaymentMethod('COD')}
+            disabled={isPlacingOrder}
           >
             <Ionicons name="cash" size={20} color={paymentMethod === 'COD' ? colors.link : '#64748B'} />
             <Text style={[styles.paymentText, paymentMethod === 'COD' && styles.paymentTextActive]}>Cash on Delivery</Text>
@@ -233,14 +398,14 @@ export default function ProductCheckoutScreen({ navigation, route }) {
              <ActivityIndicator color="#FFF" size="small" />
           ) : (
             <>
-              <Text style={styles.placeOrderText}>Place Order</Text>
+              <Text style={styles.placeOrderText}>{paymentMethod === 'COD' ? 'Place Order' : 'Pay & Place Order'}</Text>
               <Ionicons name="chevron-forward" size={18} color="#FFF" />
             </>
           )}
         </TouchableOpacity>
       </View>
 
-      {/* 🚀 FULL PREMIUM ADDRESS SELECTOR MODAL */}
+      {/* 🚀 ADDRESS SELECTOR MODAL */}
       <Modal visible={addressModalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -326,6 +491,11 @@ const styles = StyleSheet.create({
   bottomPriceValue: { fontSize: 22, fontWeight: '900', color: '#0F172A' },
   placeOrderBtn: { backgroundColor: colors.link, flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 14, gap: 6 },
   placeOrderText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+
+  // WebView Styles
+  webviewHeader: { padding: 15, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0', flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 15 },
+  webviewCloseBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  webviewCloseText: { color: '#EF4444', fontWeight: 'bold', marginLeft: 5 },
 
   // Modal Styles
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },

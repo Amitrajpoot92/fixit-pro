@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import TechLayout from '../../component/technician/TechLayout'; 
 import { 
   ClipboardList, CheckCircle, Wallet, Clock, MapPin, 
-  Loader2, Wrench, X, ArrowRight, User, Phone, Mail, ShieldCheck, AlertTriangle 
+  Loader2, Wrench, X, ArrowRight, User, Phone, Mail, ShieldCheck, AlertTriangle,
+  ChevronDown
 } from 'lucide-react';
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { db, auth } from '../../../firebase'; 
 import toast, { Toaster } from 'react-hot-toast';
@@ -29,6 +30,9 @@ export default function TechDashboard() {
   const [tasks, setTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
   const [actionId, setActionId] = useState(null);
+  
+  // 🚀 SHOW MORE STATE (Default 5)
+  const [visibleCount, setVisibleCount] = useState(5);
 
   // Modals States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,9 +49,39 @@ export default function TechDashboard() {
       if (user) {
         const q = query(collection(db, 'bookings'), where('technicianId', '==', user.uid));
 
-        const unsubscribeTasks = onSnapshot(q, (snapshot) => {
-          const tasksData = snapshot.docs.map(docSnap => {
+        const unsubscribeTasks = onSnapshot(q, async (snapshot) => {
+          // 🚀 PROMISE.ALL LOGIC (Exact Accurate User Data Fetching)
+          const tasksPromises = snapshot.docs.map(async (docSnap) => {
             const data = docSnap.data();
+            
+            let finalCustomerName = data.customerName || data.name || 'Unknown Customer';
+            let finalCustomerPhone = data.customerPhone || data.phone || data.mobile || data.phoneNumber || 'Phone not provided';
+            let finalCustomerEmail = data.customerEmail || data.email || 'Email not provided';
+
+            if (data.userId) {
+              try {
+                const userRef = doc(db, 'users', data.userId);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                  const userData = userSnap.data();
+                  if (userData.name) finalCustomerName = userData.name;
+                  if (userData.email) finalCustomerEmail = userData.email;
+                  if (userData.mobile) finalCustomerPhone = userData.mobile; 
+                  else if (userData.phone) finalCustomerPhone = userData.phone; 
+                }
+              } catch (error) {
+                console.error("Error fetching live user data:", error);
+              }
+            }
+
+            let addressDisplay = 'Store Drop / Address Not Required';
+            if (data.serviceAddress) {
+              if (typeof data.serviceAddress === 'string') {
+                addressDisplay = data.serviceAddress;
+              } else {
+                addressDisplay = `${data.serviceAddress.flat || ''} ${data.serviceAddress.area || ''} ${data.serviceAddress.city || ''} ${data.serviceAddress.pincode || ''}`.trim();
+              }
+            }
             
             return {
               id: docSnap.id,
@@ -57,20 +91,22 @@ export default function TechDashboard() {
               time: data.scheduleDate ? `${data.scheduleDate} | ${data.scheduleTime}` : 'ASAP',
               status: data.status || 'Order Placed',
               technicianStatus: data.technicianStatus || 'Pending',
-              location: data.serviceAddress ? `${data.serviceAddress.flat || ''}, ${data.serviceAddress.area || ''}, ${data.serviceAddress.city || ''}` : 'Store Drop',
+              location: addressDisplay || 'Location not available',
               mode: data.serviceMode || 'self', 
+              paymentMode: data.paymentMode || 'Offline',
               totalAmount: data.totalAmount || 0,
               
-              customerName: data.customerName || 'Customer',
-              customerPhone: data.customerPhone || 'N/A',
-              customerEmail: data.customerEmail || 'N/A',
+              customerName: finalCustomerName,
+              customerPhone: finalCustomerPhone,
+              customerEmail: finalCustomerEmail,
               
               cancelledBy: data.cancelledBy || null,
               cancelReason: data.cancelReason || 'No reason provided.'
             };
           });
           
-          setTasks(tasksData.reverse());
+          const resolvedTasks = await Promise.all(tasksPromises);
+          setTasks(resolvedTasks.reverse());
           setLoadingTasks(false);
         });
 
@@ -139,14 +175,22 @@ export default function TechDashboard() {
     setCancellingTask(false);
   };
 
+  // 🚀 Strict Filtering: DRAFT ORDERS BLOCKED
+  const validTasks = tasks.filter(t => 
+    t.status !== 'Payment_Pending' && 
+    t.status !== 'Payment_Failed' && 
+    t.status !== 'Payment_Cancelled'
+  );
+
   // 🚀 Stats Calculations
-  const newRequestsCount = tasks.filter(t => t.technicianStatus === 'Pending' && t.status !== 'Cancelled').length;
-  const activeJobsCount = tasks.filter(t => t.technicianStatus === 'Accepted' && t.status !== 'Completed' && t.status !== 'Cancelled').length;
-  const completedJobs = tasks.filter(t => t.status === 'Completed');
+  const newRequestsCount = validTasks.filter(t => t.technicianStatus === 'Pending' && t.status !== 'Cancelled').length;
+  const activeJobsCount = validTasks.filter(t => t.technicianStatus === 'Accepted' && t.status !== 'Completed' && t.status !== 'Cancelled').length;
+  const completedJobs = validTasks.filter(t => t.status === 'Completed');
   const totalEarnings = completedJobs.reduce((sum, task) => sum + (Number(task.totalAmount) || 0), 0);
 
-  // For Dashboard, we only show Urgent Tasks (New + Active)
-  const urgentTasks = tasks.filter(t => t.status !== 'Completed' && t.status !== 'Cancelled');
+  // 🚀 Urgent Tasks Board (New + Active Only)
+  const urgentTasks = validTasks.filter(t => t.status !== 'Completed' && t.status !== 'Cancelled');
+  const displayedTasks = urgentTasks.slice(0, visibleCount); // SHOW MORE LOGIC
 
   // Badges
   const getModeBadge = (mode) => {
@@ -213,94 +257,121 @@ export default function TechDashboard() {
                 <p className="text-slate-500 text-sm">You have no new requests or active jobs pending right now. Great job!</p>
               </div>
             ) : (
-              urgentTasks.map((task) => {
-                const modeData = getModeBadge(task.mode);
-                const isNew = task.technicianStatus === 'Pending';
-                
-                return (
-                  <div key={task.id} className={`bg-slate-900 border rounded-2xl p-4 sm:p-6 shadow-xl flex flex-col gap-5 ${isNew ? 'border-orange-500/50 shadow-orange-900/10' : 'border-slate-700/80'}`}>
-                    
-                    <div className="flex flex-row flex-wrap items-center gap-2 justify-between w-full border-b border-slate-800/60 pb-3">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {isNew && <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider animate-pulse">NEW</span>}
-                        <span className="bg-slate-800 px-2.5 py-1 rounded-md text-xs font-black text-slate-300 border border-slate-700">
-                          {task.orderId}
-                        </span>
-                        <span className={`px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold border ${modeData.color}`}>
-                          {modeData.text}
+              <>
+                {displayedTasks.map((task) => {
+                  const modeData = getModeBadge(task.mode);
+                  const isNew = task.technicianStatus === 'Pending';
+                  const isPrepaid = task.paymentMode === 'Online';
+                  
+                  let displayStatus = task.status;
+                  if (task.status === 'Order Placed') displayStatus = isPrepaid ? 'Placed (Online Paid)' : 'Placed (COD)';
+
+                  return (
+                    <div key={task.id} className={`bg-slate-900 border rounded-2xl p-4 sm:p-6 shadow-xl flex flex-col gap-5 ${isNew ? 'border-orange-500/50 shadow-orange-900/10' : 'border-slate-700/80'}`}>
+                      
+                      <div className="flex flex-row flex-wrap items-center gap-2 justify-between w-full border-b border-slate-800/60 pb-3">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {isNew && <span className="bg-orange-500 text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider animate-pulse">NEW</span>}
+                          <span className="bg-slate-800 px-2.5 py-1 rounded-md text-xs font-black text-slate-300 border border-slate-700">
+                            {task.orderId}
+                          </span>
+                          <span className={`px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold border ${modeData.color}`}>
+                            {modeData.text}
+                          </span>
+                          {/* 🚀 PAYMENT BADGE */}
+                          <span className={`px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold border flex items-center gap-1 ${isPrepaid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-orange-500/10 text-orange-400 border-orange-500/30'}`}>
+                            <Wallet size={12} /> {isPrepaid ? 'PRE-PAID' : 'COD'}
+                          </span>
+                        </div>
+                        <span className={`px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold border ${getStatusBadgeColor(task.status)}`}>
+                          {displayStatus}
                         </span>
                       </div>
-                      <span className={`px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold border ${getStatusBadgeColor(task.status)}`}>
-                        {task.status}
-                      </span>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-xl sm:text-2xl font-black text-white mb-1 leading-snug">{task.device}</h3>
-                      <p className="text-emerald-400 font-bold text-xs sm:text-sm flex items-center gap-1.5">
-                        <Wrench size={14} className="shrink-0" /> {task.issue}
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/80 pt-4">
                       
-                      <div className="bg-slate-950/40 p-3 sm:p-4 rounded-xl border border-slate-800/60 flex flex-col gap-2.5">
-                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Customer Info</p>
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2.5 text-slate-200 text-xs sm:text-sm font-semibold truncate">
-                            <User size={14} className="text-slate-500 shrink-0"/> <span className="truncate">{task.customerName}</span>
+                      <div>
+                        <h3 className="text-xl sm:text-2xl font-black text-white mb-1 leading-snug">{task.device}</h3>
+                        <p className="text-emerald-400 font-bold text-xs sm:text-sm flex items-center gap-1.5">
+                          <Wrench size={14} className="shrink-0" /> {task.issue}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-800/80 pt-4">
+                        
+                        <div className="bg-slate-950/40 p-3 sm:p-4 rounded-xl border border-slate-800/60 flex flex-col gap-2.5">
+                          <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Customer Info</p>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2.5 text-slate-200 text-xs sm:text-sm font-semibold truncate">
+                              <User size={14} className="text-slate-500 shrink-0"/> <span className="truncate">{task.customerName}</span>
+                            </div>
+                            <div className="flex items-center gap-2.5 text-xs sm:text-sm truncate">
+                              <Phone size={14} className="text-blue-400 shrink-0"/>
+                              {task.customerPhone !== 'Phone not provided' ? (
+                                <a href={`tel:${task.customerPhone}`} className="text-blue-400 hover:underline font-bold tracking-wide truncate">{task.customerPhone}</a>
+                              ) : <span className="text-slate-500 truncate">{task.customerPhone}</span>}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2.5 text-xs sm:text-sm truncate">
-                            <Phone size={14} className="text-blue-400 shrink-0"/>
-                            {task.customerPhone !== 'N/A' ? (
-                              <a href={`tel:${task.customerPhone}`} className="text-blue-400 hover:underline font-bold tracking-wide truncate">{task.customerPhone}</a>
-                            ) : <span className="text-slate-500 truncate">N/A</span>}
-                          </div>
+                        </div>
+
+                        <div className="bg-slate-950/40 p-3 sm:p-4 rounded-xl border border-slate-800/60 flex flex-col gap-2.5">
+                           <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Service Address / Slot</p>
+                           <div className="space-y-2">
+                             <div className="flex items-start gap-2.5 text-slate-300 text-xs sm:text-sm">
+                               <MapPin className="w-3.5 h-3.5 text-purple-400 mt-0.5 shrink-0" /> 
+                               <span className="leading-relaxed font-medium line-clamp-2">{task.location}</span>
+                             </div>
+                             <div className="flex items-center gap-2.5 text-slate-300 text-xs sm:text-sm">
+                               <Clock className="w-3.5 h-3.5 text-orange-400 shrink-0" /> 
+                               <span className="font-semibold truncate">{task.time}</span>
+                             </div>
+                           </div>
+                        </div>
+
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-slate-800/20 p-3 sm:p-4 rounded-xl border border-slate-700/40 mt-1">
+                        {/* 🚀 AMOUNT TO COLLECT LOGIC */}
+                        <div className="flex flex-row sm:flex-col justify-between items-center sm:items-start bg-slate-950 sm:bg-transparent p-3 sm:p-0 rounded-lg">
+                          <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">
+                            {isPrepaid ? 'Payment Status' : 'Amount to Collect'}
+                          </span>
+                          <span className={`text-2xl sm:text-3xl font-black ${isPrepaid ? 'text-emerald-400' : 'text-orange-400'}`}>
+                            {isPrepaid ? 'PAID' : `₹${task.totalAmount}`}
+                          </span>
+                        </div>
+                        
+                        <div className="flex flex-row flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto">
+                          <button onClick={() => { setSelectedTask(task); setIsCancelModalOpen(true); }} className="flex-1 sm:flex-initial text-center bg-slate-800 hover:bg-slate-700 border border-slate-700 px-5 py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm text-red-400 transition-all">
+                            Cancel
+                          </button>
+
+                          {isNew ? (
+                            <button onClick={() => handleAcceptJob(task.id)} className="flex-[2] sm:flex-initial text-center bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm text-white transition-all">
+                              Accept Job
+                            </button>
+                          ) : (
+                            <button onClick={() => openStatusModal(task)} className="flex-[2] sm:flex-initial text-center bg-blue-600 hover:bg-blue-500 px-5 py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm text-white transition-all flex items-center justify-center gap-1 shadow-md shadow-blue-900/20">
+                              Update Status <ArrowRight size={14} />
+                            </button>
+                          )}
                         </div>
                       </div>
 
-                      <div className="bg-slate-950/40 p-3 sm:p-4 rounded-xl border border-slate-800/60 flex flex-col gap-2.5">
-                         <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Service Address / Slot</p>
-                         <div className="space-y-2">
-                           <div className="flex items-start gap-2.5 text-slate-300 text-xs sm:text-sm">
-                             <MapPin className="w-3.5 h-3.5 text-purple-400 mt-0.5 shrink-0" /> 
-                             <span className="leading-relaxed font-medium line-clamp-2">{task.location}</span>
-                           </div>
-                           <div className="flex items-center gap-2.5 text-slate-300 text-xs sm:text-sm">
-                             <Clock className="w-3.5 h-3.5 text-orange-400 shrink-0" /> 
-                             <span className="font-semibold truncate">{task.time}</span>
-                           </div>
-                         </div>
-                      </div>
-
                     </div>
+                  );
+                })}
 
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-800/20 p-3 sm:p-4 rounded-xl border border-slate-700/40 mt-1">
-                      <div className="flex flex-row sm:flex-col justify-between items-center sm:items-start">
-                        <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wide">Total Payable</span>
-                        <span className="text-2xl sm:text-3xl font-black text-white">₹{task.totalAmount}</span>
-                      </div>
-                      
-                      <div className="flex flex-row flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto">
-                        <button onClick={() => { setSelectedTask(task); setIsCancelModalOpen(true); }} className="flex-1 sm:flex-initial text-center bg-slate-800 hover:bg-slate-700 border border-slate-700 px-5 py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm text-red-400 transition-all">
-                          Cancel
-                        </button>
-
-                        {isNew ? (
-                          <button onClick={() => handleAcceptJob(task.id)} className="flex-[2] sm:flex-initial text-center bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm text-white transition-all">
-                            Accept Job
-                          </button>
-                        ) : (
-                          <button onClick={() => openStatusModal(task)} className="flex-[2] sm:flex-initial text-center bg-blue-600 hover:bg-blue-500 px-5 py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm text-white transition-all flex items-center justify-center gap-1 shadow-md shadow-blue-900/20">
-                            Update Status <ArrowRight size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
+                {/* 🚀 SHOW MORE BUTTON */}
+                {urgentTasks.length > visibleCount && (
+                  <div className="flex justify-center mt-6">
+                    <button 
+                      onClick={() => setVisibleCount(prev => prev + 5)}
+                      className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-6 py-3 rounded-full transition-all border border-slate-700 shadow-lg text-sm"
+                    >
+                      Show More Tasks <ChevronDown className="w-4 h-4" />
+                    </button>
                   </div>
-                );
-              })
+                )}
+              </>
             )}
           </div>
         </div>

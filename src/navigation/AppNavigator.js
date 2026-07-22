@@ -24,10 +24,15 @@ import SettingsScreen from '../screens/profile/SettingsScreen';
 import WalletScreen from '../screens/wallet/WalletScreen';
 import PickupDropInfo from '../screens/knowledge/PickupDropInfo';
 import HomeServiceInfo from '../screens/knowledge/HomeServiceInfo';
+
+// 🛍️ Accessories Screens
 import ProductsMainScreen from '../screens/accessories/ProductsMainScreen';
 import ProductDetailScreen from '../screens/accessories/ProductDetailScreen';
 import ProductCheckoutScreen from '../screens/accessories/ProductCheckoutScreen';
 import CartScreen from '../screens/accessories/CartScreen';
+// 🚀 Naya Screen Import Kiya
+import ProductOrderSuccessScreen from '../screens/accessories/ProductOrderSuccessScreen'; 
+import ProductOrderTrackingScreen from '../screens/accessories/ProductOrderTrackingScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -69,10 +74,15 @@ export default function AppNavigator() {
       <Stack.Screen name="Wallet" component={WalletScreen} />
       <Stack.Screen name="PickupDropInfo" component={PickupDropInfo} />
       <Stack.Screen name="HomeServiceInfo" component={HomeServiceInfo} />
+      
+      {/* 🛍️ Accessories Stack */}
       <Stack.Screen name="ProductsMain" component={ProductsMainScreen} />
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
       <Stack.Screen name="ProductCheckout" component={ProductCheckoutScreen} />
       <Stack.Screen name="CartScreen" component={CartScreen} />
+      {/* 🚀 Naya Success Screen Safely Add Kiya */}
+      <Stack.Screen name="ProductOrderSuccess" component={ProductOrderSuccessScreen} />
+      <Stack.Screen name="ProductOrderTracking" component={ProductOrderTrackingScreen} />
     </Stack.Navigator>
   );
 }

@@ -58,6 +58,7 @@ export default function OrdersScreen() {
           status: data.status || 'Order Placed',
           price: data.totalAmount ? `₹${data.totalAmount}` : 'Pending',
           proName: data.technicianName || 'Unassigned',
+          paymentMode: data.paymentMode || 'Offline', // 🚀 Payment Mode Extracted
           modeName: mode === 'pickup' ? 'Pickup & Drop' : mode === 'home' ? 'Home Visit' : 'Self Drop',
           icon: mode === 'pickup' ? 'local-shipping' : mode === 'home' ? 'home-repair-service' : 'storefront',
           bg: mode === 'pickup' ? '#F3E8FF' : mode === 'home' ? '#E0F2FE' : '#FEF3C7',
@@ -73,7 +74,12 @@ export default function OrdersScreen() {
     const unsubProducts = onSnapshot(qProducts, (snapshot) => {
       const fetchedProducts = [];
       snapshot.forEach(doc => {
-        fetchedProducts.push({ id: doc.id, ...doc.data() });
+        const pData = doc.data();
+        fetchedProducts.push({ 
+          id: doc.id, 
+          paymentMode: pData.paymentMode || 'Offline', // 🚀 Added Payment Mode to Products
+          ...pData 
+        });
       });
       setProductOrders(fetchedProducts);
     });
@@ -94,7 +100,7 @@ export default function OrdersScreen() {
     } else {
       return productOrders.filter(order => {
         const status = order.status?.toLowerCase() || '';
-        if (activeSubTab === 'Ongoing') return ['pending', 'shipped'].includes(status);
+        if (activeSubTab === 'Ongoing') return ['pending', 'processing', 'shipped'].includes(status);
         if (activeSubTab === 'Completed') return status === 'delivered';
         if (activeSubTab === 'Cancelled') return status === 'cancelled';
         return false;
@@ -190,6 +196,26 @@ export default function OrdersScreen() {
                           <MaterialIcons name="person-pin" size={14} color="#64748B" />
                           <Text style={styles.techText}>Pro: <Text style={{fontWeight: '700', color: '#0F172A'}}>{order.proName}</Text></Text>
                         </View>
+                        
+                        {/* 🚀 DYNAMIC PAYMENT BADGE FOR SERVICE */}
+                        <View style={[
+                          styles.paymentBadge, 
+                          order.paymentMode === 'Online' ? styles.badgePaid : styles.badgeCod,
+                          { marginTop: 6, alignSelf: 'flex-start' }
+                        ]}>
+                          <MaterialIcons 
+                            name={order.paymentMode === 'Online' ? "verified" : "payments"} 
+                            size={12} 
+                            color={order.paymentMode === 'Online' ? "#15803D" : "#B45309"} 
+                          />
+                          <Text style={[
+                            styles.paymentBadgeText, 
+                            order.paymentMode === 'Online' ? styles.textPaid : styles.textCod
+                          ]}>
+                            {order.paymentMode === 'Online' ? 'PRE-PAID' : 'COD'}
+                          </Text>
+                        </View>
+
                       </View>
                       <View style={{alignItems: 'flex-end'}}><Text style={styles.priceText}>{order.price}</Text></View>
                     </View>
@@ -226,24 +252,54 @@ export default function OrdersScreen() {
                       </View>
                     </View>
 
-                    <View style={styles.productRow}>
-                      <View style={styles.imgBox}>
-                        <Image source={{ uri: order.productDetails?.image }} style={styles.productImg} resizeMode="contain" />
-                      </View>
-                      <View style={styles.serviceInfo}>
-                        <Text style={styles.serviceName} numberOfLines={1}>{order.productDetails?.name}</Text>
-                        <Text style={styles.deviceName}>Qty: {order.productDetails?.quantity} • {order.productDetails?.category}</Text>
-                        <Text style={[styles.priceText, { color: colors.link, marginTop: 4 }]}>₹{order.totalAmount}</Text>
-                      </View>
-                    </View>
+                    {(() => {
+                      const firstProduct = order.productDetails && order.productDetails.length > 0 ? order.productDetails[0] : {};
+                      const extraItemsCount = order.productDetails ? order.productDetails.length - 1 : 0;
+                      return (
+                        <View style={styles.productRow}>
+                          <View style={styles.imgBox}>
+                            <Image source={{ uri: firstProduct.image }} style={styles.productImg} resizeMode="contain" />
+                          </View>
+                          <View style={styles.serviceInfo}>
+                            <Text style={styles.serviceName} numberOfLines={1}>
+                              {firstProduct.name || 'Product'}
+                              {extraItemsCount > 0 ? ` (+${extraItemsCount} more)` : ''}
+                            </Text>
+                            <Text style={styles.deviceName}>Qty: {firstProduct.quantity || 1} • {firstProduct.category || 'Item'}</Text>
+                            
+                            {/* 🚀 DYNAMIC PAYMENT BADGE FOR PRODUCT */}
+                            <View style={[
+                              styles.paymentBadge, 
+                              order.paymentMode === 'Online' ? styles.badgePaid : styles.badgeCod,
+                              { marginTop: 4, alignSelf: 'flex-start' }
+                            ]}>
+                              <MaterialIcons 
+                                name={order.paymentMode === 'Online' ? "verified" : "payments"} 
+                                size={12} 
+                                color={order.paymentMode === 'Online' ? "#15803D" : "#B45309"} 
+                              />
+                              <Text style={[
+                                styles.paymentBadgeText, 
+                                order.paymentMode === 'Online' ? styles.textPaid : styles.textCod
+                              ]}>
+                                {order.paymentMode === 'Online' ? 'PRE-PAID' : 'COD'}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={{alignItems: 'flex-end'}}>
+                            <Text style={[styles.priceText, { color: colors.link }]}>₹{order.totalAmount}</Text>
+                          </View>
+                        </View>
+                      );
+                    })()}
 
                     <View style={styles.cardFooter}>
                       <Text style={styles.dateText}>Placed on: {orderDate}</Text>
                       <View style={styles.actionButtons}>
-                        {['pending', 'shipped'].includes(order.status?.toLowerCase()) && (
+                        {['pending', 'processing', 'shipped'].includes(order.status?.toLowerCase()) && (
                           <TouchableOpacity 
                             style={[styles.actionBtn, styles.btnPrimary]} 
-                            onPress={() => navigation.navigate('OrderTracking', { orderId: order.id, type: 'Product' })} 
+                            onPress={() => navigation.navigate('ProductOrderTracking', { orderId: order.orderId || order.id })} 
                           >
                             <Text style={styles.btnPrimaryText}>Track</Text>
                           </TouchableOpacity>
@@ -299,6 +355,14 @@ const styles = StyleSheet.create({
   techRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2, gap: 4 },
   techText: { fontSize: 12, color: '#64748B' },
   priceText: { fontSize: 18, fontWeight: '900', color: '#059669' },
+
+  // 🚀 Payment Badge Styles
+  paymentBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, gap: 3 },
+  badgePaid: { backgroundColor: '#DCFCE7' },
+  badgeCod: { backgroundColor: '#FEF3C7' },
+  paymentBadgeText: { fontSize: 10, fontWeight: '800' },
+  textPaid: { color: '#15803D' },
+  textCod: { color: '#B45309' },
   
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderColor: '#F1F5F9', paddingTop: 15 },
   dateText: { fontSize: 12, color: '#64748B', fontWeight: '700' },

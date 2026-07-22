@@ -1,66 +1,74 @@
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../firebase'; 
 import { Loader2 } from 'lucide-react';
 
+// 🚀 MEMORY CACHE: Route change hone par baar-baar database hit nahi karega
+const roleCache = {};
+
 export default function ProtectedRoute({ children, allowedRole }) {
   const [isAuthorized, setIsAuthorized] = useState(null);
+  const location = useLocation();
 
   useEffect(() => {
-    // Firebase auth state listener
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
+        // ✅ STEP 1: Agar role pehle se verified (cache) hai, toh bina loading seedha page khol do
+        if (roleCache[user.uid] === allowedRole) {
+          setIsAuthorized(true);
+          return;
+        }
+
+        // 🔄 STEP 2: Agar cache nahi hai, tabhi Firestore se check karo
         try {
-          // 🟢 ADMIN ROLE CHECK
+          let hasAccess = false;
+
           if (allowedRole === 'admin') {
             const adminDoc = await getDoc(doc(db, 'users', user.uid));
             if (adminDoc.exists() && adminDoc.data().role === 'admin') {
-              setIsAuthorized(true); // ✅ Access Granted
-            } else {
-              setIsAuthorized(false); // ❌ Wrong Role
+              hasAccess = true;
             }
-          } 
-          // 🟢 TECHNICIAN ROLE CHECK
-          else if (allowedRole === 'technician') {
+          } else if (allowedRole === 'technician') {
             const techDoc = await getDoc(doc(db, 'technicians', user.uid));
             if (techDoc.exists()) {
-              setIsAuthorized(true); // ✅ Access Granted
-            } else {
-              setIsAuthorized(false); // ❌ Not found in technicians
+              hasAccess = true;
             }
           }
-          // 🟡 FALLBACK FOR UNKNOWN ROLES
-          else {
-             setIsAuthorized(false);
+
+          if (hasAccess) {
+            roleCache[user.uid] = allowedRole; // Role save kar lo aage ke liye
+            setIsAuthorized(true);
+          } else {
+            setIsAuthorized(false);
           }
         } catch (error) {
-          console.error(`Error fetching role for ${allowedRole}:`, error);
+          console.error(`Route Error for ${allowedRole}:`, error);
           setIsAuthorized(false);
         }
       } else {
-        setIsAuthorized(false); // ❌ Not Logged In
+        setIsAuthorized(false);
       }
     });
 
     return () => unsubscribe();
   }, [allowedRole]);
 
-  // Jab tak check chal raha hai, tab tak Loader dikhao
+  // Loader (Ab yeh sirf first login par dikhega, tabs change karne par nahi)
   if (isAuthorized === null) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[#050B14]">
+      <div className="h-screen w-screen flex items-center justify-center bg-slate-950">
         <Loader2 className="w-10 h-10 animate-spin text-emerald-500" />
       </div>
     );
   }
 
-  // Agar unauthorized hai, toh wapas respective login par bhej do
+  // ❌ Unauthorized hone par safely login page bhej do
   if (!isAuthorized) {
-    return <Navigate to={allowedRole === 'admin' ? '/admin' : '/technician'} replace />;
+    return <Navigate to={allowedRole === 'admin' ? '/admin' : '/technician'} state={{ from: location }} replace />;
   }
 
-  // Agar pass ho gaya, toh page render karo
+  // ✅ Access Granted
   return children;
 }
