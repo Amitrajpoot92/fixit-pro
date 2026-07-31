@@ -1,6 +1,6 @@
 // src/navigation/BottomTabNavigator.js
 import React from 'react';
-import { View, Text, Platform, StyleSheet } from 'react-native';
+import { View, Text, Platform, StyleSheet, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons'; 
 
@@ -8,6 +8,7 @@ import HomeScreen from '../screens/home/HomeScreen';
 import OrdersScreen from '../screens/orders/OrdersScreen';
 import BookingsScreen from '../screens/bookings/BookingsScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen'; 
+import ProductsMainScreen from '../screens/accessories/ProductsMainScreen'; // 🛍️ Added for middle button
 
 import { colors } from '../theme/colors';
 
@@ -32,6 +33,19 @@ const TabIcon = ({ focused, activeIcon, inactiveIcon, label }) => {
   );
 };
 
+// 🚀 Custom Floating Button Component
+const CustomTabBarButton = ({ children, onPress }) => (
+  <TouchableOpacity
+    style={styles.floatingButtonContainer}
+    onPress={onPress}
+    activeOpacity={0.8}
+  >
+    <View style={styles.floatingButton}>
+      {children}
+    </View>
+  </TouchableOpacity>
+);
+
 export default function BottomTabNavigator() {
   return (
     <Tab.Navigator
@@ -39,7 +53,6 @@ export default function BottomTabNavigator() {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: styles.standardTabBar,
-        // Item style fix taaki tabs evenly distribute hon
         tabBarItemStyle: { 
           justifyContent: 'center', 
           alignItems: 'center',
@@ -57,6 +70,21 @@ export default function BottomTabNavigator() {
         component={OrdersScreen} 
         options={{ tabBarIcon: ({focused}) => <TabIcon focused={focused} activeIcon="receipt" inactiveIcon="receipt-outline" label="Orders" /> }} 
       />
+      
+      {/* 🟢 CENTER FLOATING BUTTON */}
+      <Tab.Screen 
+        name="ProductsTab" 
+        component={ProductsMainScreen} 
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="cart" size={28} color="#FFF" />
+            </View>
+          ),
+          tabBarButton: (props) => <CustomTabBarButton {...props} />
+        }} 
+      />
+
       <Tab.Screen 
         name="Bookings" 
         component={BookingsScreen} 
@@ -87,7 +115,7 @@ const styles = StyleSheet.create({
   tabContent: { 
     alignItems: 'center', 
     justifyContent: 'center',
-    width: 60, // Fixed width taaki text center rahe
+    width: 60, 
   },
   
   iconBox: { 
@@ -106,10 +134,36 @@ const styles = StyleSheet.create({
     fontSize: 10, 
     fontWeight: '700', 
     color: '#94A3B8',
-    marginTop: 4, // Icon se thoda gap
+    marginTop: 4, 
   },
   
   tabLabelActive: { 
     color: colors.link, 
+  },
+
+  // Floating Button Styles
+  floatingButtonContainer: {
+    top: -25, // Lift it above the bottom bar
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  floatingButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.link,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.link,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.4,
+        shadowRadius: 5,
+      },
+      android: {
+        elevation: 8,
+      }
+    })
   }
 });

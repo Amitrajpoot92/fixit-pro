@@ -59,7 +59,7 @@ export default function ProductOrderSuccessScreen({ navigation, route }) {
         
         <TouchableOpacity 
           style={styles.shopBtn} 
-          onPress={() => navigation.navigate('ProductsMain')}
+          onPress={() => navigation.navigate('ProductsTab')}
         >
           <Text style={styles.shopBtnText}>Continue Shopping</Text>
         </TouchableOpacity>

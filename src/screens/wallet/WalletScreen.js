@@ -109,7 +109,7 @@ export default function WalletScreen({ navigation }) {
         <Text style={styles.balanceAmount}>₹{balance}</Text>
         
         {/* Add Money Button (Future scope ke liye UI me daal diya hai) */}
-        <TouchableOpacity style={styles.addMoneyBtn} onPress={() => alert('Add Money Gateway will open here!')}>
+        <TouchableOpacity style={styles.addMoneyBtn} onPress={() => alert('Add Money Gateway, will be live in the next update of this Platform.')}>
           <MaterialIcons name="add" size={18} color={colors.primary} />
           <Text style={styles.addMoneyText}>Add Money</Text>
         </TouchableOpacity>

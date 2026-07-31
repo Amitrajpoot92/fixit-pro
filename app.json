@@ -5,22 +5,25 @@
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/platform-img/logo.png",
+    "splash": {
+      "image": "./assets/platform-img/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/platform-img/logo.png"
       },
       "package": "com.amitrajpoot.FixitPro"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/platform-img/logo.png"
     },
     "extra": {
       "eas": {

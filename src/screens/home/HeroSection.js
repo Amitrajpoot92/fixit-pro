@@ -175,7 +175,7 @@ export default function HeroSection({ navigation }) {
           {n: 'Book Repair', i: 'build', c: colors.tintBlue, ic: colors.iconBlue, route: 'DeviceSelection'}, 
           {n: 'Pickup & Drop', i: 'moped', c: colors.tintGreen, ic: colors.success, route: 'PickupDropInfo'},
           {n: 'Home Service', i: 'home', c: colors.tintOrange, ic: colors.iconOrange, route: 'HomeServiceInfo'},
-          {n: 'Accessories', i: 'smartphone', c: colors.tintPurple, ic: colors.iconPurple, route: 'ProductsMain'},
+          {n: 'Accessories', i: 'smartphone', c: colors.tintPurple, ic: colors.iconPurple, route: 'ProductsTab'},
           {n: 'Support', i: 'support-agent', c: colors.tintPink, ic: colors.iconPink, route: 'Support'},
         ].map((item, idx) => (
           <TouchableOpacity 

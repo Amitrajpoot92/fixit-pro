@@ -8,6 +8,7 @@ import { colors } from '../theme/colors';
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
 import BottomTabNavigator from './BottomTabNavigator';
+import SearchScreen from '../screens/home/SearchScreen';
 import DeviceSelectionScreen from '../screens/Booking/DeviceSelectionScreen';
 import ModelSelectionScreen from '../screens/Booking/ModelSelectionScreen';
 import ServiceSelectionScreen from '../screens/Booking/ServiceSelectionScreen';
@@ -56,6 +57,7 @@ export default function AppNavigator() {
       }}
     >
       <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
+      <Stack.Screen name="SearchScreen" component={SearchScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="DeviceSelection" component={DeviceSelectionScreen} />
@@ -76,7 +78,7 @@ export default function AppNavigator() {
       <Stack.Screen name="HomeServiceInfo" component={HomeServiceInfo} />
       
       {/* 🛍️ Accessories Stack */}
-      <Stack.Screen name="ProductsMain" component={ProductsMainScreen} />
+      {/* 🛍️ Accessories Stack */}
       <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
       <Stack.Screen name="ProductCheckout" component={ProductCheckoutScreen} />
       <Stack.Screen name="CartScreen" component={CartScreen} />

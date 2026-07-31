@@ -6,7 +6,6 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   SafeAreaView, 
-  Switch, 
   Platform, 
   StatusBar,
   Alert,
@@ -23,8 +22,6 @@ import { auth, db } from '../../services/firebaseConfig';
 export default function SettingsScreen({ navigation, route }) {
   const { user } = useAuth(); // 🧠 Get current user
   
-  const [isPushEnabled, setIsPushEnabled] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // 🚀 1. Reset Password Logic
@@ -120,23 +117,6 @@ export default function SettingsScreen({ navigation, route }) {
       {/* SETTINGS CONTENT */}
       <View style={styles.content}>
         
-        <Text style={styles.sectionHeader}>Preferences</Text>
-        <View style={styles.card}>
-          {/* Notification Toggle */}
-          <View style={styles.settingRow}>
-            <View style={styles.iconBox}><Ionicons name="notifications" size={20} color={colors.primary} /></View>
-            <Text style={styles.settingText}>Push Notifications</Text>
-            <Switch value={isPushEnabled} onValueChange={setIsPushEnabled} trackColor={{true: colors.primary}} />
-          </View>
-
-          {/* Dark Mode Toggle */}
-          <View style={[styles.settingRow, {borderBottomWidth: 0}]}>
-            <View style={styles.iconBox}><Ionicons name="moon" size={20} color={colors.iconPurple} /></View>
-            <Text style={styles.settingText}>Dark Mode</Text>
-            <Switch value={isDarkMode} onValueChange={setIsDarkMode} trackColor={{true: colors.primary}} />
-          </View>
-        </View>
-
         <Text style={styles.sectionHeader}>Account Security</Text>
         <View style={styles.card}>
           

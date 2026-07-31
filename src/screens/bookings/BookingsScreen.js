@@ -1,7 +1,7 @@
 // src/screens/bookings/BookingsScreen.js
 import React, { useRef, useState, useEffect } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, ScrollView, 
+  View, Text, StyleSheet, SafeAreaView, FlatList, 
   TouchableOpacity, Platform, StatusBar, ActivityIndicator 
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,7 @@ import { useTabVisibility } from '../../context/TabVisibilityContext';
 import { useNavigation } from '@react-navigation/native';
 
 // 🚀 Firebase Imports
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { db, auth } from '../../services/firebaseConfig'; 
 
 const shadowStyle = Platform.select({
@@ -44,6 +44,7 @@ export default function BookingsScreen() {
   const [activeTab, setActiveTab] = useState('Upcoming');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [bookingLimit, setBookingLimit] = useState(20); // 🚀 Pagination limit
 
   // 🚀 Fetch Live Bookings from Firestore
   useEffect(() => {
@@ -56,7 +57,8 @@ export default function BookingsScreen() {
     const q = query(
       collection(db, 'bookings'),
       where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      orderBy('createdAt', 'desc'),
+      limit(bookingLimit)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -97,7 +99,11 @@ export default function BookingsScreen() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [bookingLimit]);
+
+  const handleLoadMore = () => {
+    setBookingLimit(prev => prev + 10);
+  };
 
   const handleScroll = (event) => {
     const yOffset = event.nativeEvent.contentOffset.y;
@@ -140,32 +146,34 @@ export default function BookingsScreen() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#10B981" />
         </View>
+      ) : filteredBookings.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="calendar-outline" size={60} color="#CBD5E1" />
+          <Text style={styles.emptyStateTitle}>No {activeTab.toLowerCase()} bookings</Text>
+          <TouchableOpacity style={styles.bookNowBtn} onPress={() => navigation.navigate('DeviceSelection')}>
+            <Text style={styles.btnPrimaryText}>Book a Service</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
-        <ScrollView 
-          showsVerticalScrollIndicator={false} 
+        <FlatList 
+          data={filteredBookings}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
-          scrollEventThrottle={16} 
-          contentContainerStyle={{paddingBottom: 150, paddingHorizontal: 20}} 
-        >
-          {filteredBookings.length === 0 ? (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIconCircle}><MaterialIcons name="event-busy" size={40} color="#94A3B8" /></View>
-              <Text style={styles.emptyStateTitle}>No {activeTab.toLowerCase()} home visits</Text>
-              <TouchableOpacity style={styles.bookNowBtn} onPress={() => navigation.navigate('DeviceSelection')}>
-                <Text style={styles.btnPrimaryText}>Book Home Service</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            filteredBookings.map((booking) => (
-              <View key={booking.id} style={[styles.bookingCard, shadowStyle]}>
-                <View style={styles.cardHeader}>
-                  <View style={[styles.dateBox, { backgroundColor: booking.bg }]}>
-                    <Text style={[styles.dateMonth, { color: booking.color }]}>{booking.month}</Text>
-                    <Text style={[styles.dateDay, { color: booking.color }]}>{booking.day}</Text>
-                  </View>
-                  <View style={styles.bookingInfo}>
-                    <View style={styles.categoryRow}>
-                      <Text style={styles.categoryText}>{booking.category}</Text>
+          scrollEventThrottle={16}
+          contentContainerStyle={{paddingBottom: 150, paddingHorizontal: 20}}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          renderItem={({ item: booking }) => (
+            <View key={booking.id} style={[styles.bookingCard, shadowStyle]}>
+              <View style={styles.cardHeader}>
+                <View style={[styles.dateBox, { backgroundColor: booking.bg }]}>
+                  <Text style={[styles.dateMonth, { color: booking.color }]}>{booking.month}</Text>
+                  <Text style={[styles.dateDay, { color: booking.color }]}>{booking.day}</Text>
+                </View>
+                <View style={styles.bookingInfo}>
+                  <View style={styles.categoryRow}>
+                    <Text style={styles.categoryText}>{booking.category}</Text>
                       {/* Price on Header for quick view */}
                       <Text style={styles.priceText}>{booking.price}</Text>
                     </View>
@@ -238,9 +246,8 @@ export default function BookingsScreen() {
                   )}
                 </View>
               </View>
-            ))
-          )}
-        </ScrollView>
+          )} 
+        />
       )}
     </SafeAreaView>
   );

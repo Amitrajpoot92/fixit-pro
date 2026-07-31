@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Image, Platform, StatusBar, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Platform, StatusBar, ActivityIndicator, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
-import { collection, query, onSnapshot, addDoc, getDocs, where, updateDoc, doc, increment } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, getDocs, where, updateDoc, doc, increment, limit } from 'firebase/firestore';
 import { db } from '../../services/firebaseConfig';
 import { useAuth } from '../../context/AuthContext';
 
@@ -14,6 +15,7 @@ export default function ProductsMainScreen({ navigation }) {
   const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [cartCount, setCartCount] = useState(0);
+  const [productLimit, setProductLimit] = useState(14); // 🚀 Pagination limit
 
   useEffect(() => {
     // Fetch Categories
@@ -22,13 +24,18 @@ export default function ProductsMainScreen({ navigation }) {
       setCategories(['All', ...cats]);
     });
 
-    // Fetch Products
+    // Fetch Products with Pagination Limit
     let newProds = []; let refProds = [];
-    const unsubNew = onSnapshot(collection(db, 'new_products'), (snap) => {
+    
+    // Base Queries
+    let qNew = query(collection(db, 'new_products'), limit(productLimit));
+    let qRef = query(collection(db, 'refurbished_products'), limit(productLimit));
+
+    const unsubNew = onSnapshot(qNew, (snap) => {
       newProds = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAllProducts([...newProds, ...refProds]); setLoading(false);
     });
-    const unsubRef = onSnapshot(collection(db, 'refurbished_products'), (snap) => {
+    const unsubRef = onSnapshot(qRef, (snap) => {
       refProds = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAllProducts([...newProds, ...refProds]); setLoading(false);
     });
@@ -42,7 +49,11 @@ export default function ProductsMainScreen({ navigation }) {
     }
 
     return () => { unsubCats(); unsubNew(); unsubRef(); unsubCart(); };
-  }, [user]);
+  }, [user, productLimit]); // Re-run when limit increases
+
+  const handleLoadMore = () => {
+    setProductLimit(prev => prev + 10); // Increase limit for infinite scroll
+  };
 
   const addToCart = async (product) => {
     if (!user) return Alert.alert("Login Required", "Please login to add items to cart.");
@@ -67,7 +78,15 @@ export default function ProductsMainScreen({ navigation }) {
     const hasDiscount = item.originalPrice && item.originalPrice > item.price;
     return (
       <TouchableOpacity style={styles.productCard} onPress={() => navigation.navigate('ProductDetail', { product: item })}>
-        <View style={{height: 100, alignItems: 'center'}}><Image source={{ uri: item.image }} style={{width: '80%', height: '100%'}} resizeMode="contain" /></View>
+        <View style={{height: 100, alignItems: 'center'}}>
+          <Image 
+            source={{ uri: item.image }} 
+            style={{width: '80%', height: '100%'}} 
+            contentFit="contain" 
+            transition={200}
+            cachePolicy="disk"
+          />
+        </View>
         <Text style={{fontSize: 13, fontWeight: '800', marginTop: 10}} numberOfLines={1}>{item.name}</Text>
         <Text style={{fontSize: 10, color: '#94A3B8', fontWeight: '700', marginBottom: 10}}>{item.category}</Text>
         <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end'}}>
@@ -111,7 +130,16 @@ export default function ProductsMainScreen({ navigation }) {
       </View>
 
       {loading ? <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator size="large" color={colors.link}/></View> : (
-        <FlatList data={filteredProducts} numColumns={2} keyExtractor={item => item.id} contentContainerStyle={{ paddingHorizontal: 15, paddingBottom: 50 }} columnWrapperStyle={{ justifyContent: 'space-between' }} renderItem={renderProductCard} />
+        <FlatList 
+          data={filteredProducts} 
+          numColumns={2} 
+          keyExtractor={item => item.id} 
+          contentContainerStyle={{ paddingHorizontal: 15, paddingBottom: 50 }} 
+          columnWrapperStyle={{ justifyContent: 'space-between' }} 
+          renderItem={renderProductCard}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+        />
       )}
     </SafeAreaView>
   );

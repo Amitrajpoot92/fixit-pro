@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateEmail, updatePassword, signOut } from 'firebase/auth';
 import { db, auth } from '../../../firebase';
 import AdminLayout from '../../component/admin/AdminLayout';
 import { Wrench, Loader2, CheckCircle, Edit, Trash2, X, UserPlus, Phone, Mail, User, Eye, Store, MapPin } from 'lucide-react';
@@ -50,6 +50,26 @@ export default function Technicians() {
     return userCredential.user;
   };
 
+  const updateTechAuthAccount = async (oldEmail, oldPassword, newEmail, newPassword) => {
+    const appName = "TechCreatorApp";
+    let secondaryApp;
+    
+    const existingApps = getApps();
+    secondaryApp = existingApps.find(app => app.name === appName) || initializeApp(auth.app.options, appName);
+    
+    const secondaryAuth = getAuth(secondaryApp);
+    const userCredential = await signInWithEmailAndPassword(secondaryAuth, oldEmail, oldPassword);
+    
+    if (oldEmail !== newEmail) {
+      await updateEmail(userCredential.user, newEmail);
+    }
+    if (oldPassword !== newPassword) {
+      await updatePassword(userCredential.user, newPassword);
+    }
+    
+    await signOut(secondaryAuth);
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     
@@ -85,11 +105,32 @@ export default function Technicians() {
         toast.success("Technician Account Created!", { icon: <CheckCircle className="text-emerald-500" /> });
       } else {
         // 🔄 UPDATE EXISTING TECHNICIAN
+        const existingTech = technicians.find(t => t.id === editingId);
+        
+        if (existingTech.username !== formattedUsername && technicians.some(t => t.username === formattedUsername && t.id !== editingId)) {
+          toast.error("Username already taken! Choose another.");
+          setLoading(false);
+          return;
+        }
+
+        try {
+          // Note: If they manually changed their password directly via firebase, this will fail.
+          // But in this flow, their password is their phone number.
+          await updateTechAuthAccount(existingTech.email, existingTech.phone, generatedEmail, phone);
+        } catch (authError) {
+          console.error("Auth Update Error:", authError);
+          toast.error("Could not update Auth credentials (maybe old password changed manually).");
+          setLoading(false);
+          return;
+        }
+
         await updateDoc(doc(db, 'technicians', editingId), {
           name: name,
+          username: formattedUsername,
+          email: generatedEmail,
           phone: phone
         });
-        toast.success("Details Updated!");
+        toast.success("Credentials & Details Updated!");
       }
 
       resetForm();
@@ -171,7 +212,6 @@ export default function Technicians() {
                     value={username} 
                     onChange={e => setUsername(e.target.value)} 
                     placeholder="raju" 
-                    disabled={!!editingId} 
                     className="w-full bg-transparent p-4 text-white outline-none disabled:opacity-50" 
                     required 
                   />
@@ -179,7 +219,6 @@ export default function Technicians() {
                     @fixitpro.com
                   </div>
                 </div>
-                {editingId && <p className="text-xs text-amber-500/80 mt-1">Username cannot be changed after creation.</p>}
               </div>
 
               <div className="space-y-2">

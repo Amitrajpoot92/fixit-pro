@@ -15,10 +15,11 @@ export default function ProductOrders() {
   const [loading, setLoading] = useState(true);
   
   // 🚀 MODALS STATE
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null); // { type: 'view' | 'update', data: order }
   const [newStatus, setNewStatus] = useState('');
+  const [adminCancelReason, setAdminCancelReason] = useState('');
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
 
   useEffect(() => {
     // 🛍️ Fetch E-commerce Product Orders (Latest First)
@@ -104,14 +105,25 @@ export default function ProductOrders() {
   // 🚀 Update Product Logistics Status Logic
   const handleUpdateProductStatus = async () => {
     if (!selectedOrder || !selectedOrder.data || !newStatus) return;
+
+    if (newStatus === 'Cancelled' && !adminCancelReason.trim()) {
+      toast.error("Please provide a reason for cancellation");
+      return;
+    }
+
     setStatusUpdating(true);
     try {
-      await updateDoc(doc(db, 'product_orders', selectedOrder.data.id), {
-        status: newStatus
-      });
+      const updateData = { status: newStatus };
+      if (newStatus === 'Cancelled') {
+        updateData.cancelledBy = 'Admin';
+        updateData.cancelReason = adminCancelReason;
+      }
+
+      await updateDoc(doc(db, 'product_orders', selectedOrder.data.id), updateData);
       toast.success(`Order successfully marked as ${newStatus}`);
       setIsStatusModalOpen(false);
       setSelectedOrder(null);
+      setAdminCancelReason('');
     } catch (error) {
       console.error(error);
       toast.error("Failed to update status");
@@ -200,9 +212,16 @@ export default function ProductOrders() {
 
                         {/* Status */}
                         <td className="p-4 align-top">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(order.status)} uppercase tracking-wider`}>
-                            {order.status}
-                          </span>
+                          <div className="flex flex-col items-start gap-2">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${getStatusColor(order.status)} uppercase tracking-wider`}>
+                              {order.status}
+                            </span>
+                            {order.status === 'Cancelled' && order.cancelReason && (
+                              <p className="text-[10px] text-red-400 font-medium max-w-[150px] leading-snug">
+                                <span className="font-bold">Reason:</span> {order.cancelReason}
+                              </p>
+                            )}
+                          </div>
                         </td>
 
                         {/* Actions */}
@@ -339,6 +358,18 @@ export default function ProductOrders() {
                 </select>
                 <div className="absolute top-1/2 right-4 -translate-y-1/2 pointer-events-none text-slate-500 text-xs">▼</div>
               </div>
+
+              {newStatus === 'Cancelled' && (
+                <div className="mb-8 animate-in slide-in-from-top-2 duration-300">
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Cancellation Reason <span className="text-red-500">*</span></label>
+                  <textarea 
+                    value={adminCancelReason}
+                    onChange={(e) => setAdminCancelReason(e.target.value)}
+                    placeholder="Enter reason for cancelling this order..."
+                    className="w-full bg-slate-950 border-2 border-red-500/30 rounded-xl p-4 text-white outline-none focus:border-red-500 font-medium resize-none h-24"
+                  />
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <button onClick={() => {setIsStatusModalOpen(false); setSelectedOrder(null);}} className="flex-1 bg-slate-800 text-slate-300 font-bold py-3.5 rounded-xl hover:bg-slate-700 transition-colors">Cancel</button>

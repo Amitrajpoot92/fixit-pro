@@ -57,15 +57,17 @@ export default function HomeHeader({ navigation }) {
       </View>
 
       {/* 2. SEARCH BAR */}
-      <View style={styles.searchContainer}>
+      <TouchableOpacity 
+        style={styles.searchContainer}
+        onPress={() => navigation.navigate('SearchScreen')}
+        activeOpacity={0.8}
+      >
         <MaterialIcons name="search" size={22} color={colors.textMuted} />
-        <TextInput 
-          placeholder="Search for services, accessories..." 
-          placeholderTextColor={colors.textMuted}
-          style={styles.searchInput} 
-        />
+        <Text style={[styles.searchInput, { color: colors.textMuted, paddingTop: 2 }]}>
+          Search for services, accessories...
+        </Text>
         <MaterialIcons name="mic-none" size={22} color={colors.textMuted} />
-      </View>
+      </TouchableOpacity>
     </View>
   );
 }

@@ -14,6 +14,7 @@ export default function Kyc() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('unverified'); 
+  const [isEditing, setIsEditing] = useState(false);
   
   // 👁️ Visibility States for sensitive fields
   const [showPan, setShowPan] = useState(false);
@@ -69,6 +70,7 @@ export default function Kyc() {
       if (!user) throw new Error("No user logged in");
       await setDoc(doc(db, 'technicians', user.uid), { kyc_details: formData, kyc_status: 'pending' }, { merge: true });
       setStatus('pending');
+      setIsEditing(false);
       alert("KYC Details Submitted! Waiting for Admin Approval.");
     } catch (error) {
       alert("Failed to save details. Please try again.");
@@ -78,6 +80,7 @@ export default function Kyc() {
   };
 
   const isVerified = status === 'verified';
+  const isLocked = isVerified && !isEditing;
 
   return (
     <TechLayout>
@@ -118,8 +121,8 @@ export default function Kyc() {
                   <div className="space-y-2 relative">
                     <label className="text-sm font-semibold text-slate-300">PAN Number <span className="text-red-500">*</span></label>
                     <div className="relative">
-                      <input required disabled={isVerified} type={showPan ? "text" : "password"} name="pan_number" value={formData.pan_number} onChange={handleChange} maxLength="10" placeholder="ABCDE1234F" className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 pr-12 text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50" />
-                      <button type="button" onClick={() => setShowPan(!showPan)} className="absolute right-3 top-3.5 text-slate-400 hover:text-white" disabled={isVerified}>
+                      <input required disabled={isLocked} type={showPan ? "text" : "password"} name="pan_number" value={formData.pan_number} onChange={handleChange} maxLength="10" placeholder="ABCDE1234F" className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 pr-12 text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" />
+                      <button type="button" onClick={() => setShowPan(!showPan)} className="absolute right-3 top-3.5 text-slate-400 hover:text-white" disabled={isLocked}>
                         {showPan ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
@@ -127,8 +130,8 @@ export default function Kyc() {
                   <div className="space-y-2 relative">
                     <label className="text-sm font-semibold text-slate-300">Aadhaar Number <span className="text-red-500">*</span></label>
                     <div className="relative">
-                      <input required disabled={isVerified} type={showAadhaar ? "text" : "password"} name="aadhaar_number" value={formData.aadhaar_number} onChange={handleChange} maxLength="12" placeholder="[Aadhaar Redacted]" className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 pr-12 text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50" />
-                      <button type="button" onClick={() => setShowAadhaar(!showAadhaar)} className="absolute right-3 top-3.5 text-slate-400 hover:text-white" disabled={isVerified}>
+                      <input required disabled={isLocked} type={showAadhaar ? "text" : "password"} name="aadhaar_number" value={formData.aadhaar_number} onChange={handleChange} maxLength="12" placeholder="[Aadhaar Redacted]" className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 pr-12 text-white focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" />
+                      <button type="button" onClick={() => setShowAadhaar(!showAadhaar)} className="absolute right-3 top-3.5 text-slate-400 hover:text-white" disabled={isLocked}>
                         {showAadhaar ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
@@ -146,15 +149,15 @@ export default function Kyc() {
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-300">Account Number <span className="text-red-500">*</span></label>
                     <div className="relative">
-                      <input required disabled={isVerified} type={showAccount ? "text" : "password"} name="account_number" value={formData.account_number} onChange={handleChange} placeholder="Enter Account No." className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 pr-12 text-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 font-mono tracking-wider" />
-                      <button type="button" onClick={() => setShowAccount(!showAccount)} className="absolute right-3 top-3.5 text-slate-400 hover:text-white" disabled={isVerified}>
+                      <input required disabled={isLocked} type={showAccount ? "text" : "password"} name="account_number" value={formData.account_number} onChange={handleChange} placeholder="Enter Account No." className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 pr-12 text-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed font-mono tracking-wider" />
+                      <button type="button" onClick={() => setShowAccount(!showAccount)} className="absolute right-3 top-3.5 text-slate-400 hover:text-white" disabled={isLocked}>
                         {showAccount ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-300">IFSC Code <span className="text-red-500">*</span></label>
-                    <input required disabled={isVerified} type="text" name="ifsc_code" value={formData.ifsc_code} onChange={handleChange} maxLength="11" placeholder="SBIN0001234" className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 font-mono" />
+                    <input required disabled={isLocked} type="text" name="ifsc_code" value={formData.ifsc_code} onChange={handleChange} maxLength="11" placeholder="SBIN0001234" className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed font-mono" />
                   </div>
                 </div>
               </div>
@@ -168,35 +171,47 @@ export default function Kyc() {
                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-300 flex items-center gap-2"><Phone className="w-4 h-4 text-slate-400"/> Primary Mobile No <span className="text-red-500">*</span></label>
-                    <input required disabled={isVerified} type="text" name="mobile_number" value={formData.mobile_number} onChange={handleChange} maxLength="10" placeholder="9876543210" className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-purple-500 disabled:opacity-50" />
+                    <input required disabled={isLocked} type="text" name="mobile_number" value={formData.mobile_number} onChange={handleChange} maxLength="10" placeholder="9876543210" className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed" />
                   </div>
                   
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-300">UPI ID <span className="text-slate-500">(Optional)</span></label>
-                    <input disabled={isVerified} type="text" name="upi_id" value={formData.upi_id} onChange={handleChange} placeholder="yourname@okbank" className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-purple-500 disabled:opacity-50" />
+                    <input disabled={isLocked} type="text" name="upi_id" value={formData.upi_id} onChange={handleChange} placeholder="yourname@okbank" className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed" />
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-sm font-semibold text-slate-300">UPI Number <span className="text-slate-500">(Optional)</span></label>
-                    <input disabled={isVerified} type="text" name="upi_number" value={formData.upi_number} onChange={handleChange} maxLength="10" placeholder="9876543210" className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-purple-500 disabled:opacity-50" />
+                    <input disabled={isLocked} type="text" name="upi_number" value={formData.upi_number} onChange={handleChange} maxLength="10" placeholder="9876543210" className="w-full bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed" />
                   </div>
                 </div>
               </div>
 
               {/* ACTION BUTTONS */}
               <div className="flex justify-end pt-4 pb-10">
-                {!isVerified ? (
-                  <button type="submit" disabled={saving} className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-8 py-3.5 rounded-xl font-bold flex items-center gap-2 transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/20">
-                    {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                    {saving ? 'Saving Details...' : 'Submit Securely for Verification'}
-                  </button>
+                {!isLocked ? (
+                  <div className="flex gap-4">
+                    {isVerified && (
+                      <button type="button" onClick={() => setIsEditing(false)} className="bg-slate-800 hover:bg-slate-700 text-white px-6 py-3.5 rounded-xl font-bold transition-all">
+                        Cancel
+                      </button>
+                    )}
+                    <button type="submit" disabled={saving} className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-8 py-3.5 rounded-xl font-bold flex items-center gap-2 transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/20">
+                      {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                      {saving ? 'Saving Details...' : 'Submit Securely for Verification'}
+                    </button>
+                  </div>
                 ) : (
-                  <div className="w-full md:w-auto bg-emerald-500/10 px-6 py-4 rounded-xl border border-emerald-500/20 flex items-center justify-center gap-3">
-                    <ShieldCheck className="w-6 h-6 text-emerald-400" />
-                    <div>
-                      <p className="text-emerald-400 font-bold">Details Verified & Locked</p>
-                      <p className="text-emerald-500/70 text-xs mt-0.5">Contact support to make any changes.</p>
+                  <div className="w-full bg-emerald-500/10 px-6 py-4 rounded-xl border border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <ShieldCheck className="w-6 h-6 text-emerald-400" />
+                      <div>
+                        <p className="text-emerald-400 font-bold">Details Verified & Locked</p>
+                        <p className="text-emerald-500/70 text-xs mt-0.5">Your payouts are being sent to these details.</p>
+                      </div>
                     </div>
+                    <button type="button" onClick={() => setIsEditing(true)} className="bg-slate-800 text-white border border-slate-600 px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-700 transition-colors">
+                      Update Details
+                    </button>
                   </div>
                 )}
               </div>

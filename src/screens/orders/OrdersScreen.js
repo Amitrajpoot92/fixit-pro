@@ -1,14 +1,15 @@
 // src/screens/orders/OrdersScreen.js
 import React, { useRef, useState, useEffect } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, ScrollView, 
-  TouchableOpacity, Platform, StatusBar, ActivityIndicator, Image 
+  View, Text, StyleSheet, SafeAreaView, FlatList, 
+  TouchableOpacity, Platform, StatusBar, ActivityIndicator 
 } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useNavigation } from '@react-navigation/native';
 
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { auth, db } from '../../services/firebaseConfig'; 
 
 const shadowStyle = Platform.select({
@@ -33,6 +34,7 @@ export default function OrdersScreen() {
   const [serviceOrders, setServiceOrders] = useState([]);
   const [productOrders, setProductOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [orderLimit, setOrderLimit] = useState(20); // 🚀 Pagination limit
 
   // 🚀 Fetch Both Service Bookings & Product Orders
   useEffect(() => {
@@ -43,7 +45,7 @@ export default function OrdersScreen() {
     }
 
     // 1. Fetch Service Bookings
-    const qServices = query(collection(db, 'bookings'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    const qServices = query(collection(db, 'bookings'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(orderLimit));
     const unsubServices = onSnapshot(qServices, (snapshot) => {
       const fetchedServices = [];
       snapshot.forEach(doc => {
@@ -70,7 +72,7 @@ export default function OrdersScreen() {
     });
 
     // 2. Fetch Product Orders
-    const qProducts = query(collection(db, 'product_orders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    const qProducts = query(collection(db, 'product_orders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(orderLimit));
     const unsubProducts = onSnapshot(qProducts, (snapshot) => {
       const fetchedProducts = [];
       snapshot.forEach(doc => {
@@ -85,7 +87,11 @@ export default function OrdersScreen() {
     });
 
     return () => { unsubServices(); unsubProducts(); };
-  }, []);
+  }, [orderLimit]); // Re-run when limit increases
+
+  const handleLoadMore = () => {
+    setOrderLimit(prev => prev + 10);
+  };
 
   // 🚀 Filter Logic for Active Tab
   const getFilteredData = () => {
@@ -155,21 +161,26 @@ export default function OrdersScreen() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#2563EB" />
         </View>
+      ) : filteredData.length === 0 ? (
+        <View style={styles.emptyState}>
+          <MaterialIcons name={activeMainTab === 'Services' ? "home-repair-service" : "local-mall"} size={50} color="#CBD5E1" />
+          <Text style={styles.emptyStateTitle}>No {activeSubTab.toLowerCase()} {activeMainTab.toLowerCase()}</Text>
+          <TouchableOpacity 
+            style={styles.bookNowBtn} 
+            onPress={() => navigation.navigate(activeMainTab === 'Services' ? 'DeviceSelection' : 'ProductsTab')}
+          >
+            <Text style={styles.btnPrimaryText}>{activeMainTab === 'Services' ? 'Book a Service' : 'Shop Now'}</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{paddingBottom: 100, paddingHorizontal: 20}}>
-          {filteredData.length === 0 ? (
-            <View style={styles.emptyState}>
-              <MaterialIcons name={activeMainTab === 'Services' ? "home-repair-service" : "local-mall"} size={50} color="#CBD5E1" />
-              <Text style={styles.emptyStateTitle}>No {activeSubTab.toLowerCase()} {activeMainTab.toLowerCase()}</Text>
-              <TouchableOpacity 
-                style={styles.bookNowBtn} 
-                onPress={() => navigation.navigate(activeMainTab === 'Services' ? 'DeviceSelection' : 'ProductsMain')}
-              >
-                <Text style={styles.btnPrimaryText}>{activeMainTab === 'Services' ? 'Book a Service' : 'Shop Now'}</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            filteredData.map((order) => {
+        <FlatList 
+          data={filteredData}
+          keyExtractor={item => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{paddingBottom: 100, paddingHorizontal: 20}}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          renderItem={({ item: order }) => {
               
               // 🛠️ RENDER SERVICE CARD
               if (activeMainTab === 'Services') {
@@ -226,12 +237,19 @@ export default function OrdersScreen() {
                         <TouchableOpacity style={[styles.actionBtn, styles.btnSoft]} onPress={() => navigation.navigate('Support')}>
                           <Text style={styles.btnSoftText}>Support</Text>
                         </TouchableOpacity>
-                        {['order placed', 'technician assigned', 'repair in-progress'].includes(order.status.toLowerCase()) && (
+                        {['order placed', 'technician assigned', 'repair in-progress'].includes(order.status.toLowerCase()) ? (
                           <TouchableOpacity 
                             style={[styles.actionBtn, styles.btnPrimary]} 
                             onPress={() => navigation.navigate('OrderTracking', { orderId: order.orderId, type: 'Service' })} 
                           >
                             <Text style={styles.btnPrimaryText}>Track</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity 
+                            style={[styles.actionBtn, styles.btnSoft, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]} 
+                            onPress={() => navigation.navigate('OrderTracking', { orderId: order.orderId, type: 'Service' })} 
+                          >
+                            <Text style={[styles.btnSoftText, { color: '#64748B' }]}>View Details</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -296,12 +314,19 @@ export default function OrdersScreen() {
                     <View style={styles.cardFooter}>
                       <Text style={styles.dateText}>Placed on: {orderDate}</Text>
                       <View style={styles.actionButtons}>
-                        {['pending', 'processing', 'shipped'].includes(order.status?.toLowerCase()) && (
+                        {['pending', 'processing', 'shipped'].includes(order.status?.toLowerCase()) ? (
                           <TouchableOpacity 
                             style={[styles.actionBtn, styles.btnPrimary]} 
                             onPress={() => navigation.navigate('ProductOrderTracking', { orderId: order.orderId || order.id })} 
                           >
                             <Text style={styles.btnPrimaryText}>Track</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity 
+                            style={[styles.actionBtn, styles.btnSoft, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]} 
+                            onPress={() => navigation.navigate('ProductOrderTracking', { orderId: order.orderId || order.id })} 
+                          >
+                            <Text style={[styles.btnSoftText, { color: '#64748B' }]}>View Details</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -309,9 +334,9 @@ export default function OrdersScreen() {
                   </View>
                 );
               }
-            })
-          )}
-        </ScrollView>
+              return null;
+          }} 
+        />
       )}
     </SafeAreaView>
   );

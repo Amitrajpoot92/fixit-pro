@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  Image, Dimensions, Platform, ActivityIndicator 
+  Dimensions, Platform, ActivityIndicator 
 } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../../services/firebaseConfig';
@@ -93,7 +94,13 @@ export default function HorizontalSliders({ navigation }) {
               >
                  <View style={styles.serviceImageWrapper}>
                    {item.image ? (
-                     <Image source={{ uri: item.image }} style={styles.serviceRectImage} resizeMode="cover" />
+                     <Image 
+                       source={{ uri: item.image }} 
+                       style={styles.serviceRectImage} 
+                       contentFit="cover" 
+                       transition={200}
+                       cachePolicy="disk"
+                     />
                    ) : (
                      <View style={styles.placeholderImg}><MaterialIcons name="build" size={30} color="#94A3B8" /></View>
                    )}
@@ -113,7 +120,7 @@ export default function HorizontalSliders({ navigation }) {
         <>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Shop by Category</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ProductsMain')}>
+            <TouchableOpacity onPress={() => navigation.navigate('ProductsTab')}>
               <Text style={styles.viewAll}>View All <MaterialIcons name="arrow-forward" size={14}/></Text>
             </TouchableOpacity>
           </View>
@@ -124,7 +131,7 @@ export default function HorizontalSliders({ navigation }) {
                 key={item.id} 
                 style={styles.catCircleItem}
                 // Agar aap chahte ho ki category select ho jaye toh Params me bhej sakte ho future ke liye
-                onPress={() => navigation.navigate('ProductsMain', { category: item.name })}
+                onPress={() => navigation.navigate('ProductsTab', { category: item.name })}
               >
                  <View style={[styles.catCircle, shadowStyle]}>
                    <MaterialIcons name={getCategoryIcon(item.name)} size={26} color={colors.primary} />
@@ -132,8 +139,7 @@ export default function HorizontalSliders({ navigation }) {
                  <Text style={styles.catCircleLabel} numberOfLines={1}>{item.name}</Text>
               </TouchableOpacity>
             ))}
-            
-            <TouchableOpacity style={styles.catCircleItem} onPress={() => navigation.navigate('ProductsMain')}>
+            <TouchableOpacity style={styles.catCircleItem} onPress={() => navigation.navigate('ProductsTab')}>
                <View style={[styles.catCircle, shadowStyle, { backgroundColor: '#F1F5F9' }]}>
                  <MaterialIcons name="arrow-forward" size={26} color={colors.link} />
                </View>
@@ -148,7 +154,7 @@ export default function HorizontalSliders({ navigation }) {
         <>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Trending Accessories</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ProductsMain')}>
+            <TouchableOpacity onPress={() => navigation.navigate('ProductsTab')}>
               <Text style={styles.viewAll}>View All <MaterialIcons name="arrow-forward" size={14}/></Text>
             </TouchableOpacity>
           </View>
@@ -168,7 +174,13 @@ export default function HorizontalSliders({ navigation }) {
                    <View style={styles.productContent}>
                      <View style={styles.productImageBackground}>
                        {item.image ? (
-                         <Image source={{uri: item.image}} style={styles.productImage} resizeMode="contain" />
+                         <Image 
+                           source={{uri: item.image}} 
+                           style={styles.productImage} 
+                           contentFit="contain" 
+                           transition={200}
+                           cachePolicy="disk"
+                         />
                        ) : (
                          <Ionicons name="cart" size={24} color="#94A3B8" />
                        )}

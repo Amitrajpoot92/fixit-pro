@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons'; 
 import { auth, db } from '../../services/firebaseConfig';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { colors } from '../../theme/colors'; 
 
@@ -24,6 +24,27 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const handleForgotPassword = async () => {
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      alert("Please enter your email address first to reset password.");
+      return;
+    }
+    
+    try {
+      await sendPasswordResetEmail(auth, cleanEmail);
+      alert("Password reset link has been sent to your email.");
+    } catch (error) {
+      if (error.code === 'auth/user-not-found') {
+        alert("No account found with this email.");
+      } else if (error.code === 'auth/invalid-email') {
+        alert("Please enter a valid email address.");
+      } else {
+        alert("Failed to send reset email. Please try again.");
+      }
+    }
+  };
 
   const handleLogin = async () => {
     // 🧹 Clean inputs before processing
@@ -105,6 +126,12 @@ export default function LoginScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
 
+              <View style={styles.forgotPasswordContainer}>
+                <TouchableOpacity onPress={handleForgotPassword}>
+                  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
                 {loading ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.loginButtonText}>Login Securely</Text>}
               </TouchableOpacity>
@@ -170,6 +197,8 @@ const styles = StyleSheet.create({
   iconContainer: { padding: 5, marginLeft: 10 },
   loginButton: { backgroundColor: colors.accent, borderRadius: 16, paddingVertical: 18, alignItems: 'center', marginTop: 10, justifyContent: 'center', elevation: 5 },
   loginButtonText: { color: colors.primary, fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
+  forgotPasswordContainer: { alignItems: 'flex-end', marginBottom: 24, marginTop: -10, paddingRight: 5 },
+  forgotPasswordText: { color: colors.textDark, fontSize: 13, fontWeight: '800' },
   signupContainer: { flexDirection: 'row', justifyContent: 'center', marginTop: 30 },
   signupText: { color: colors.textLight, fontSize: 15, fontWeight: '500' },
   signupLink: { color: colors.textDark, fontSize: 15, fontWeight: '800', marginLeft: 4 }
