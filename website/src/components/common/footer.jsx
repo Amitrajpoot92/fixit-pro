@@ -65,7 +65,8 @@ export default function Footer() {
                   { name: 'Contact Us', path: '#' },
                   { name: 'FAQs', path: '#' },
                   { name: 'Privacy', path: '/privacy-policy' },
-                  { name: 'Terms', path: '/terms-and-conditions' }
+                  { name: 'Terms', path: '/terms-and-conditions' },
+                  { name: 'Delete Account', path: '/delete-account' }
                 ].map((link, i) => (
                   <li key={i}>
                     <Link to={link.path} className="text-slate-400 text-xs font-medium hover:text-blue-400 transition-colors flex items-center gap-2 group">
