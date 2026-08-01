@@ -22,6 +22,7 @@ import ReferAndEarnScreen from '../screens/profile/ReferAndEarnScreen';
 import OffersScreen from '../screens/profile/OffersScreen';
 import SupportScreen from '../screens/profile/SupportScreen';
 import SettingsScreen from '../screens/profile/SettingsScreen';
+import TermsAndPoliciesScreen from '../screens/profile/TermsAndPoliciesScreen';
 import WalletScreen from '../screens/wallet/WalletScreen';
 import PickupDropInfo from '../screens/knowledge/PickupDropInfo';
 import HomeServiceInfo from '../screens/knowledge/HomeServiceInfo';
@@ -72,6 +73,7 @@ export default function AppNavigator() {
       <Stack.Screen name="ReferEarn" component={ReferAndEarnScreen} />
       <Stack.Screen name="Offers" component={OffersScreen} />
       <Stack.Screen name="Support" component={SupportScreen} />
+      <Stack.Screen name="TermsAndPolicies" component={TermsAndPoliciesScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Wallet" component={WalletScreen} />
       <Stack.Screen name="PickupDropInfo" component={PickupDropInfo} />

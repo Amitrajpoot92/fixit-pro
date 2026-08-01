@@ -53,6 +53,7 @@ export default function ProfileScreen() {
     { icon: 'account-balance-wallet', title: 'My Wallet', color: '#0284C7', bg: '#E0F2FE', route: 'Wallet' }, 
     { icon: 'local-offer', title: 'Offers & Promos', color: colors.iconOrange, bg: colors.tintOrange, route: 'Offers' },
     { icon: 'support-agent', title: 'Help & Support', color: colors.iconPurple, bg: colors.tintPurple, route: 'Support' },
+    { icon: 'gavel', title: 'Terms & Policies', color: '#475569', bg: '#F1F5F9', route: 'TermsAndPolicies' },
     { icon: 'settings', title: 'Settings', color: colors.textDark, bg: colors.inputBg, route: 'Settings' },
   ];
 

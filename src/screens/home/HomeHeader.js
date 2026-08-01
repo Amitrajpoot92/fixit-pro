@@ -1,7 +1,7 @@
 // src/components/home/HomeHeader.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors'; 
 
 // 🔥 Firebase & Auth Imports for Live Cart Count
@@ -33,7 +33,7 @@ export default function HomeHeader({ navigation }) {
       {/* 1. LOGO & TOP ICONS */}
       <View style={styles.header}>
         <View style={styles.brandLeft}>
-          <Ionicons name="settings" size={24} color={colors.primary} />
+          <Image source={require('../../../assets/platform-img/logo.png')} style={styles.logoIcon} />
           <Text style={styles.logoText}>Fixit</Text>
           <View style={styles.logoProBox}>
             <Text style={styles.logoProText}>Pro</Text>
@@ -83,6 +83,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10 
   },
   brandLeft: { flexDirection: 'row', alignItems: 'center' },
+  logoIcon: { width: 28, height: 28, resizeMode: 'contain' },
   logoText: { fontSize: 22, fontWeight: '900', color: colors.primary, marginLeft: 6, marginRight: 4 },
   logoProBox: { backgroundColor: colors.link, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   logoProText: { color: colors.white, fontSize: 12, fontWeight: '800' },

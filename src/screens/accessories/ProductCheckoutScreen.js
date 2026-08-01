@@ -15,8 +15,8 @@ import { WebView } from 'react-native-webview';
 import { encode } from 'base-64'; 
 
 // 🔑 LIVE RAZORPAY KEYS
-const RAZORPAY_KEY_ID = 'rzp_test_TDkSfPEYeOrsUu'; 
-const RAZORPAY_KEY_SECRET = 'JRFXeYF4d88u0q4tHECJbBw6';
+const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID; 
+const RAZORPAY_KEY_SECRET = process.env.EXPO_PUBLIC_RAZORPAY_KEY_SECRET;
 
 export default function ProductCheckoutScreen({ navigation, route }) {
   const cartItems = route.params?.cartItems || [];

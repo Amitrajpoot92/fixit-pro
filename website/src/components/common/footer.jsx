@@ -61,11 +61,16 @@ export default function Footer() {
             <div className="flex flex-col items-start">
               <h4 className="text-white font-extrabold mb-4 tracking-wide uppercase text-[10px] opacity-50">Support</h4>
               <ul className="space-y-2.5">
-                {['Contact Us', 'FAQs', 'Privacy', 'Terms'].map((link, i) => (
+                {[
+                  { name: 'Contact Us', path: '#' },
+                  { name: 'FAQs', path: '#' },
+                  { name: 'Privacy', path: '/privacy-policy' },
+                  { name: 'Terms', path: '/terms-and-conditions' }
+                ].map((link, i) => (
                   <li key={i}>
-                    <a href="#" className="text-slate-400 text-xs font-medium hover:text-blue-400 transition-colors flex items-center gap-2 group">
-                      {link}
-                    </a>
+                    <Link to={link.path} className="text-slate-400 text-xs font-medium hover:text-blue-400 transition-colors flex items-center gap-2 group">
+                      {link.name}
+                    </Link>
                   </li>
                 ))}
               </ul>

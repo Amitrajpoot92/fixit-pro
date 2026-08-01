@@ -76,7 +76,7 @@ export default function SupportScreen({ navigation }) {
         <View style={styles.logoContainer}>
           {/* ⚠️ NOTE: Fallback error handling added safely */}
           <Image 
-            source={require('../../../assets/platform-img/logo.jpeg')} 
+            source={require('../../../assets/platform-img/brand_logo.jpeg')} 
             style={styles.logoImage} 
             onError={(e) => console.log('Logo Image failed to load', e.nativeEvent.error)}
           />

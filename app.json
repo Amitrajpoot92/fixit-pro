@@ -16,29 +16,32 @@
       "supportsTablet": true
     },
     "android": {
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/platform-img/logo.png"
       },
-      "package": "com.amitrajpoot.FixitPro"
+      "package": "com.codewebx.fixitpro"
     },
     "web": {
       "favicon": "./assets/platform-img/logo.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "2d8e01e3-5f18-4b40-8e38-ddff14507a58"
-      }
     },
     "plugins": [
       [
         "expo-image-picker",
         {
           "photosPermission": "The app accesses your photos to let you choose images.",
-          "cameraPermission": "The app accesses your camera to let you take photos."
+          "cameraPermission": "The app accesses your camera to let you take photos.",
+          "microphonePermission": "The app accesses your microphone for KYC verification."
         }
       ],
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d82b1384-87d6-4bb5-8e60-60a5be5d7092"
+      }
+    },
+    "owner": "mrfixitpro"
   }
 }

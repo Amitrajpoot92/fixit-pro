@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/home';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsConditions from './pages/TermsConditions';
 
 // 🔐 Login Pages
 import AdminLogin from './Dashboard/pages/admin/login';
@@ -39,6 +41,8 @@ function App() {
   return (
     <Router>
       <Routes>
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-and-conditions" element={<TermsConditions />} />
         <Route path="/" element={<Home />} />
         
         <Route path="/admin" element={<AdminLogin />} />
