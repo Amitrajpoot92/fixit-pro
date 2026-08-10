@@ -226,8 +226,8 @@ const styles = StyleSheet.create({
   cartBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#EF4444', width: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFF' },
   cartBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
 
-  imageBox: { height: 400, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  mainImage: { width: '70%', height: '70%' },
+  imageBox: { height: width, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  mainImage: { width: '100%', height: '100%' },
   
   arrowBtn: { position: 'absolute', top: '45%', width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.8)', justifyContent: 'center', alignItems: 'center', zIndex: 5 },
   dotsContainer: { position: 'absolute', bottom: 30, flexDirection: 'row', justifyContent: 'center', width: '100%' },

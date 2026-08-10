@@ -1,20 +1,29 @@
-// src/screens/home/HomeScreen.js
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { 
   SafeAreaView, ScrollView, Platform, StatusBar, StyleSheet 
 } from 'react-native';
 import { colors } from '../../theme/colors';
 import { useTabVisibility } from '../../context/TabVisibilityContext'; 
 
-// 🚀 Fixed Import Paths (Tamara folder structure pramane)
+// 🚀 Fixed Import Paths
 import HomeHeader from './HomeHeader';
 import HeroSection from './HeroSection';
 import PromoBanners from './PromoBanners';
 import HorizontalSliders from './HorizontalSliders';
+import HomeSkeleton from './HomeSkeleton';
 
 export default function HomeScreen({ navigation }) {
   const { setIsTabBarVisible } = useTabVisibility(); 
   const currentY = useRef(0);
+  const [isFirstLoading, setIsFirstLoading] = useState(true);
+
+  useEffect(() => {
+    // Show skeleton for 1.5 seconds on first app load
+    const timer = setTimeout(() => {
+      setIsFirstLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Scroll DOWN = Hide TabBar, Scroll UP = Show TabBar
   const handleScroll = (event) => {
@@ -33,6 +42,10 @@ export default function HomeScreen({ navigation }) {
 
     currentY.current = yOffset;
   };
+
+  if (isFirstLoading) {
+    return <HomeSkeleton />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -69,6 +82,6 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 
   },
   scrollContent: { 
-    paddingBottom: 150 
+    paddingBottom: 90 
   }
 });

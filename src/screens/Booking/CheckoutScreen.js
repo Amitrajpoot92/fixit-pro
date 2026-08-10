@@ -127,7 +127,9 @@ export default function CheckoutScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Checkout</Text>
-        <View style={{width: 44}} />
+        <TouchableOpacity onPress={() => navigation.navigate('MainTabs')} style={styles.backBtn}>
+          <Ionicons name="home-outline" size={22} color="#0F172A" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>

@@ -4,17 +4,18 @@ import {
   Dimensions, Platform, ActivityIndicator 
 } from 'react-native';
 import { Image } from 'expo-image';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { collection, getDocs, query, limit } from 'firebase/firestore';
 import { db } from '../../services/firebaseConfig';
 import { colors } from '../../theme/colors';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
 const shadowStyle = Platform.select({
-  ios: { shadowColor: '#1E293B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 },
-  android: { elevation: 4 },
-  web: { boxShadow: '0px 4px 8px rgba(30, 41, 59, 0.1)' }
+  ios: { shadowColor: '#334155', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 16 },
+  android: { elevation: 8 },
+  web: { boxShadow: '0px 8px 16px rgba(51, 65, 85, 0.12)' }
 });
 
 export default function HorizontalSliders({ navigation }) {
@@ -55,42 +56,43 @@ export default function HorizontalSliders({ navigation }) {
   // 🧠 Helper to assign icons to categories based on name
   const getCategoryIcon = (name) => {
     const n = name.toLowerCase();
-    if (n.includes('display') || n.includes('screen')) return 'smartphone';
-    if (n.includes('battery')) return 'battery-charging-full';
-    if (n.includes('charg')) return 'electrical-services';
-    if (n.includes('cable')) return 'cable';
-    if (n.includes('cover') || n.includes('case')) return 'phone-android';
-    if (n.includes('headphone') || n.includes('ear')) return 'headphones';
-    return 'category';
+    if (n.includes('display') || n.includes('screen')) return 'mobile-alt';
+    if (n.includes('battery')) return 'battery-full';
+    if (n.includes('charg')) return 'bolt';
+    if (n.includes('cable')) return 'plug';
+    if (n.includes('cover') || n.includes('case')) return 'mobile';
+    if (n.includes('headphone') || n.includes('ear')) return 'headphones-alt';
+    return 'th-large';
   };
 
   if (loading) {
     return (
       <View style={{ padding: 40, alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color="#3B82F6" />
       </View>
     );
   }
 
   return (
-    <View>
+    <View style={styles.container}>
       {/* 🛠️ 1. POPULAR REPAIR SERVICES */}
       {services.length > 0 && (
-        <>
+        <View style={styles.sectionWrapper}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Popular Repair Services</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('DeviceSelection')}>
-              <Text style={styles.viewAll}>View All <MaterialIcons name="arrow-forward" size={14}/></Text>
+            <Text style={styles.sectionTitle}>Premium Repairs</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('DeviceSelection')} style={styles.viewAllBtn}>
+              <Text style={styles.viewAll}>See All</Text>
+              <MaterialIcons name="chevron-right" size={16} color="#2563EB"/>
             </TouchableOpacity>
           </View>
           
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
             {services.map((item) => (
               <TouchableOpacity 
                 key={item.id} 
                 style={[styles.serviceCard, shadowStyle]}
                 onPress={() => navigation.navigate('DeviceSelection')}
-                activeOpacity={0.8}
+                activeOpacity={0.9}
               >
                  <View style={styles.serviceImageWrapper}>
                    {item.image ? (
@@ -102,64 +104,81 @@ export default function HorizontalSliders({ navigation }) {
                        cachePolicy="disk"
                      />
                    ) : (
-                     <View style={styles.placeholderImg}><MaterialIcons name="build" size={30} color="#94A3B8" /></View>
+                     <View style={styles.placeholderImg}><MaterialIcons name="build" size={32} color="#94A3B8" /></View>
                    )}
+                   {/* Premium Badge overlay */}
+                   <LinearGradient colors={['rgba(0,0,0,0.6)', 'transparent']} style={styles.imageOverlay} />
+                   <View style={styles.ratingBadge}>
+                     <MaterialIcons name="star" size={12} color="#FDE047" />
+                     <Text style={styles.ratingText}>4.9</Text>
+                   </View>
                  </View>
                  <View style={styles.serviceTextContainer}>
                    <Text style={styles.sName} numberOfLines={2}>{item.title}</Text>
-                   <Text style={styles.sPriceLabel}>Starts at <Text style={styles.sPriceValue}>₹{item.basePrice}</Text></Text>
+                   <View style={styles.priceRowBadge}>
+                     <Text style={styles.sPriceLabel}>Starts at </Text>
+                     <Text style={styles.sPriceValue}>₹{item.basePrice}</Text>
+                   </View>
                  </View>
               </TouchableOpacity>
             ))}
           </ScrollView>
-        </>
+        </View>
       )}
 
       {/* 📦 2. SHOP BY CATEGORY */}
       {categories.length > 0 && (
-        <>
+        <View style={styles.sectionWrapper}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Shop by Category</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ProductsTab')}>
-              <Text style={styles.viewAll}>View All <MaterialIcons name="arrow-forward" size={14}/></Text>
-            </TouchableOpacity>
+            <Text style={styles.sectionTitle}>Explore Categories</Text>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
             {categories.map((item, idx) => (
               <TouchableOpacity 
                 key={item.id} 
                 style={styles.catCircleItem}
-                // Agar aap chahte ho ki category select ho jaye toh Params me bhej sakte ho future ke liye
                 onPress={() => navigation.navigate('ProductsTab', { category: item.name })}
+                activeOpacity={0.8}
               >
-                 <View style={[styles.catCircle, shadowStyle]}>
-                   <MaterialIcons name={getCategoryIcon(item.name)} size={26} color={colors.primary} />
-                 </View>
-                 <Text style={styles.catCircleLabel} numberOfLines={1}>{item.name}</Text>
+                 <LinearGradient 
+                    colors={['#FFFFFF', '#F1F5F9']} 
+                    style={[styles.catCircle, shadowStyle]}
+                 >
+                   <View style={styles.iconInnerBg}>
+                     <FontAwesome5 name={getCategoryIcon(item.name)} size={22} color="#2563EB" />
+                   </View>
+                 </LinearGradient>
+                 <Text style={styles.catCircleLabel} numberOfLines={2}>{item.name}</Text>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity style={styles.catCircleItem} onPress={() => navigation.navigate('ProductsTab')}>
-               <View style={[styles.catCircle, shadowStyle, { backgroundColor: '#F1F5F9' }]}>
-                 <MaterialIcons name="arrow-forward" size={26} color={colors.link} />
-               </View>
-               <Text style={styles.catCircleLabel}>More</Text>
+            <TouchableOpacity style={styles.catCircleItem} onPress={() => navigation.navigate('ProductsTab')} activeOpacity={0.8}>
+                 <LinearGradient 
+                    colors={['#FFFFFF', '#F1F5F9']} 
+                    style={[styles.catCircle, shadowStyle]}
+                 >
+                   <View style={[styles.iconInnerBg, {backgroundColor: '#F8FAFC'}]}>
+                     <MaterialIcons name="arrow-forward" size={26} color="#64748B" />
+                   </View>
+                 </LinearGradient>
+               <Text style={styles.catCircleLabel}>View All</Text>
             </TouchableOpacity>
           </ScrollView>
-        </>
+        </View>
       )}
 
       {/* 🔥 3. TRENDING ACCESSORIES */}
       {trending.length > 0 && (
-        <>
+        <View style={[styles.sectionWrapper, { marginBottom: 0 }]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Trending Accessories</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('ProductsTab')}>
-              <Text style={styles.viewAll}>View All <MaterialIcons name="arrow-forward" size={14}/></Text>
+            <TouchableOpacity onPress={() => navigation.navigate('ProductsTab')} style={styles.viewAllBtn}>
+              <Text style={styles.viewAll}>Shop Now</Text>
+              <MaterialIcons name="chevron-right" size={16} color="#2563EB"/>
             </TouchableOpacity>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalScroll}>
             {trending.map((item) => {
               const hasDiscount = item.originalPrice && item.originalPrice > item.price;
               const discountPercent = hasDiscount ? Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100) : 0;
@@ -182,65 +201,86 @@ export default function HorizontalSliders({ navigation }) {
                            cachePolicy="disk"
                          />
                        ) : (
-                         <Ionicons name="cart" size={24} color="#94A3B8" />
+                         <Ionicons name="cart" size={26} color="#94A3B8" />
+                       )}
+                       {hasDiscount && (
+                         <LinearGradient colors={['#EF4444', '#DC2626']} style={styles.discountBadge}>
+                           <Text style={styles.discountBadgeText}>{discountPercent}% OFF</Text>
+                         </LinearGradient>
                        )}
                      </View>
                      
                      <View style={styles.productDetails}>
-                       <Text style={styles.productName} numberOfLines={1}>{item.name}</Text>
+                       <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
                        <View style={styles.priceRow}>
                          <Text style={styles.currentPrice}>₹{item.price}</Text>
                          {hasDiscount && <Text style={styles.oldPrice}>₹{item.originalPrice}</Text>}
                        </View>
-                       {hasDiscount ? <Text style={styles.discountText}>{discountPercent}% OFF</Text> : null}
                      </View>
                    </View>
                    
-                   <View style={styles.addButton}>
-                     <MaterialIcons name="add" size={16} color={colors.white} />
-                   </View>
+                   <LinearGradient 
+                     colors={['#2563EB', '#1D4ED8']} 
+                     start={{x: 0, y: 0}} end={{x: 1, y: 1}}
+                     style={styles.addButton}
+                   >
+                     <MaterialIcons name="add-shopping-cart" size={16} color="#FFF" />
+                   </LinearGradient>
                 </TouchableOpacity>
               )
             })}
           </ScrollView>
-        </>
+        </View>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    paddingTop: 10,
+  },
+  sectionWrapper: {
+    marginBottom: 35,
+  },
   /* SECTION HEADERS */
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 15, marginTop: 30, alignItems: 'center' },
-  sectionTitle: { fontSize: 17, fontWeight: '900', color: '#0F172A' },
-  viewAll: { fontSize: 13, fontWeight: '800', color: colors.link, flexDirection: 'row', alignItems: 'center' },
-  horizontalScroll: { paddingLeft: 15, marginTop: 15, paddingBottom: 10 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 18, alignItems: 'center' },
+  sectionTitle: { fontSize: 19, fontWeight: '900', color: '#0F172A', letterSpacing: -0.5 },
+  viewAllBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#DBEAFE', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+  viewAll: { fontSize: 12, fontWeight: '800', color: '#1D4ED8' },
+  horizontalScroll: { paddingHorizontal: 20, paddingBottom: 20 },
   
   /* 🛠️ REPAIR SERVICES (Rectangular Premium Card) */
-  serviceCard: { backgroundColor: '#FFF', borderRadius: 16, width: 140, marginRight: 15, overflow: 'hidden', borderWidth: 1, borderColor: '#F1F5F9' },
-  serviceImageWrapper: { height: 90, width: '100%', backgroundColor: '#F8FAFC' },
+  serviceCard: { backgroundColor: '#FFF', borderRadius: 24, width: 155, marginRight: 18, overflow: 'hidden', borderWidth: 1, borderColor: '#F1F5F9' },
+  serviceImageWrapper: { height: 115, width: '100%', backgroundColor: '#F8FAFC', position: 'relative' },
   serviceRectImage: { width: '100%', height: '100%' },
   placeholderImg: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: '#F1F5F9' },
-  serviceTextContainer: { padding: 12 },
-  sName: { fontWeight: '800', fontSize: 13, color: '#0F172A', marginBottom: 4, minHeight: 35 },
-  sPriceLabel: { fontSize: 11, color: '#64748B', fontWeight: '600' },
-  sPriceValue: { fontWeight: '900', color: colors.success, fontSize: 14 },
+  imageOverlay: { position: 'absolute', top: 0, left: 0, right: 0, height: 40 },
+  ratingBadge: { position: 'absolute', top: 10, left: 10, backgroundColor: 'rgba(0,0,0,0.5)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8 },
+  ratingText: { color: '#FFF', fontSize: 10, fontWeight: '800', marginLeft: 3 },
+  serviceTextContainer: { padding: 16 },
+  sName: { fontWeight: '800', fontSize: 14, color: '#0F172A', marginBottom: 8, minHeight: 40, lineHeight: 18, letterSpacing: -0.2 },
+  priceRowBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start' },
+  sPriceLabel: { fontSize: 10, color: '#059669', fontWeight: '700' },
+  sPriceValue: { fontWeight: '900', color: '#047857', fontSize: 12 },
 
-  /* 📦 CATEGORIES */
-  catCircleItem: { alignItems: 'center', marginRight: 18, width: 65 },
-  catCircle: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginBottom: 8, borderWidth: 1, borderColor: '#DBEAFE' },
-  catCircleLabel: { fontSize: 12, fontWeight: '700', color: '#475569', textAlign: 'center' },
+  /* 📦 CATEGORIES (Glassmorphic Squircles) */
+  catCircleItem: { alignItems: 'center', marginRight: 20, width: 75 },
+  catCircle: { width: 72, height: 72, borderRadius: 26, justifyContent: 'center', alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: '#F8FAFC' },
+  iconInnerBg: { width: 44, height: 44, borderRadius: 18, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' },
+  catCircleLabel: { fontSize: 12, fontWeight: '800', color: '#334155', textAlign: 'center', lineHeight: 16 },
 
-  /* 🔥 TRENDING ACCESSORIES */
-  productCard: { backgroundColor: colors.white, borderRadius: 16, width: width * 0.75, marginRight: 15, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+  /* 🔥 TRENDING ACCESSORIES (Sleek Product Card) */
+  productCard: { backgroundColor: '#FFF', borderRadius: 24, width: width * 0.78, marginRight: 18, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
   productContent: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  productImageBackground: { width: 65, height: 65, borderRadius: 12, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', marginRight: 12, borderWidth: 1, borderColor: '#F1F5F9' },
-  productImage: { width: '80%', height: '80%' },
-  productDetails: { flex: 1, justifyContent: 'center', paddingRight: 10 },
-  productName: { fontSize: 14, fontWeight: '800', color: '#0F172A', marginBottom: 6 },
-  priceRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
-  currentPrice: { fontSize: 16, fontWeight: '900', color: colors.success },
-  oldPrice: { fontSize: 12, color: '#94A3B8', textDecorationLine: 'line-through', marginBottom: 2 },
-  discountText: { fontSize: 11, color: colors.success, fontWeight: '800', marginTop: 4 },
-  addButton: { width: 34, height: 34, borderRadius: 12, backgroundColor: colors.link, justifyContent: 'center', alignItems: 'center', elevation: 3 },
+  productImageBackground: { width: 80, height: 80, borderRadius: 20, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', marginRight: 16, position: 'relative' },
+  productImage: { width: '85%', height: '85%' },
+  discountBadge: { position: 'absolute', top: -8, left: -8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10, borderWidth: 2, borderColor: '#FFF', shadowColor: '#EF4444', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.3, shadowRadius: 4 },
+  discountBadgeText: { color: '#FFF', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
+  productDetails: { flex: 1, justifyContent: 'center', paddingRight: 12 },
+  productName: { fontSize: 15, fontWeight: '800', color: '#0F172A', marginBottom: 10, lineHeight: 20, letterSpacing: -0.3 },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  currentPrice: { fontSize: 18, fontWeight: '900', color: '#10B981', letterSpacing: -0.5 },
+  oldPrice: { fontSize: 13, color: '#94A3B8', textDecorationLine: 'line-through', fontWeight: '600' },
+  addButton: { width: 40, height: 40, borderRadius: 14, justifyContent: 'center', alignItems: 'center', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 5 },
 });

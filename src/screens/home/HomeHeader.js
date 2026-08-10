@@ -1,6 +1,6 @@
 // src/components/home/HomeHeader.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors'; 
 
@@ -8,6 +8,7 @@ import { colors } from '../../theme/colors';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebaseConfig';
 import { useAuth } from '../../context/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function HomeHeader({ navigation }) {
   const { user } = useAuth();
@@ -29,15 +30,19 @@ export default function HomeHeader({ navigation }) {
   }, [user]);
 
   return (
-    <View>
+    <View style={styles.container}>
       {/* 1. LOGO & TOP ICONS */}
       <View style={styles.header}>
         <View style={styles.brandLeft}>
           <Image source={require('../../../assets/platform-img/logo.png')} style={styles.logoIcon} />
           <Text style={styles.logoText}>Fixit</Text>
-          <View style={styles.logoProBox}>
+          <LinearGradient 
+            colors={['#3B82F6', '#2563EB']} 
+            start={{x: 0, y: 0}} end={{x: 1, y: 1}}
+            style={styles.logoProBox}
+          >
             <Text style={styles.logoProText}>Pro</Text>
-          </View>
+          </LinearGradient>
         </View>
 
         <View style={styles.headerRight}>
@@ -45,8 +50,9 @@ export default function HomeHeader({ navigation }) {
           <TouchableOpacity 
             style={styles.iconBtn} 
             onPress={() => navigation.navigate('CartScreen')}
+            activeOpacity={0.7}
           >
-            <MaterialIcons name="shopping-cart" size={26} color={colors.textDark} />
+            <MaterialIcons name="shopping-cart" size={26} color="#1E293B" />
             {cartCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{cartCount}</Text>
@@ -60,63 +66,82 @@ export default function HomeHeader({ navigation }) {
       <TouchableOpacity 
         style={styles.searchContainer}
         onPress={() => navigation.navigate('SearchScreen')}
-        activeOpacity={0.8}
+        activeOpacity={0.9}
       >
-        <MaterialIcons name="search" size={22} color={colors.textMuted} />
-        <Text style={[styles.searchInput, { color: colors.textMuted, paddingTop: 2 }]}>
-          Search for services, accessories...
-        </Text>
-        <MaterialIcons name="mic-none" size={22} color={colors.textMuted} />
+        <MaterialIcons name="search" size={22} color="#64748B" />
+        <Text style={styles.searchInput}>Search for services, accessories...</Text>
+        <View style={styles.micBox}>
+          <MaterialIcons name="mic-none" size={20} color="#3B82F6" />
+        </View>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#F8FAFC', // Slightly distinct header background
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(226, 232, 240, 0.5)',
+  },
   /* HEADER */
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center', 
-    paddingHorizontal: 15, 
+    paddingHorizontal: 20, 
     paddingTop: 15, 
-    paddingBottom: 10 
+    paddingBottom: 15 
   },
   brandLeft: { flexDirection: 'row', alignItems: 'center' },
-  logoIcon: { width: 28, height: 28, resizeMode: 'contain' },
-  logoText: { fontSize: 22, fontWeight: '900', color: colors.primary, marginLeft: 6, marginRight: 4 },
-  logoProBox: { backgroundColor: colors.link, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  logoProText: { color: colors.white, fontSize: 12, fontWeight: '800' },
+  logoIcon: { width: 32, height: 32, resizeMode: 'contain' },
+  logoText: { fontSize: 24, fontWeight: '900', color: '#0F172A', marginLeft: 8, marginRight: 6, letterSpacing: -0.5 },
+  logoProBox: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 3 },
+  logoProText: { color: colors.white, fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
 
   headerRight: { flexDirection: 'row', alignItems: 'center' },
-  iconBtn: { position: 'relative', padding: 4 },
+  iconBtn: { position: 'relative', padding: 6, backgroundColor: '#FFF', borderRadius: 12, ...Platform.select({ ios: { shadowColor: '#1E293B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8 }, android: { elevation: 3 } }) },
   badge: { 
     position: 'absolute', 
-    top: -2, 
-    right: -2, 
-    backgroundColor: colors.error, 
-    borderRadius: 10, 
-    minWidth: 18, 
-    height: 18, 
+    top: -4, 
+    right: -4, 
+    backgroundColor: '#EF4444', 
+    borderRadius: 12, 
+    minWidth: 20, 
+    height: 20, 
     justifyContent: 'center', 
     alignItems: 'center', 
-    borderWidth: 1.5, 
-    borderColor: colors.white,
-    paddingHorizontal: 3
+    borderWidth: 2, 
+    borderColor: '#FFF',
+    paddingHorizontal: 4,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
   },
-  badgeText: { color: colors.white, fontSize: 10, fontWeight: 'bold' },
+  badgeText: { color: '#FFF', fontSize: 10, fontWeight: '900' },
 
   /* SEARCH BAR */
   searchContainer: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    backgroundColor: colors.inputBg, 
-    marginHorizontal: 15, 
-    marginVertical: 15, 
-    padding: 12, 
-    borderRadius: 25, 
+    backgroundColor: '#FFF', 
+    marginHorizontal: 20, 
+    paddingHorizontal: 16,
+    paddingVertical: 12, 
+    borderRadius: 16, 
     borderWidth: 1, 
-    borderColor: colors.borderColor 
+    borderColor: '#F1F5F9',
+    ...Platform.select({
+      ios: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 15 },
+      android: { elevation: 4 },
+    })
   },
-  searchInput: { marginHorizontal: 10, flex: 1, fontSize: 14, color: colors.textDark, outlineStyle: 'none' },
+  searchInput: { marginLeft: 12, flex: 1, fontSize: 15, color: '#94A3B8', fontWeight: '500' },
+  micBox: {
+    backgroundColor: '#EFF6FF',
+    padding: 6,
+    borderRadius: 10,
+  }
 });

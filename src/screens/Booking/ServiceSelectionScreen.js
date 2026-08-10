@@ -128,7 +128,9 @@ export default function ServiceSelectionScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Select Services</Text>
-        <View style={{width: 44}} />
+        <TouchableOpacity onPress={() => navigation.navigate('MainTabs')} style={styles.backBtn}>
+          <Ionicons name="home-outline" size={22} color="#0F172A" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>

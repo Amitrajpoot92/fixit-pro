@@ -139,7 +139,9 @@ export default function DeviceSelectionScreen({ navigation }) {
           <Ionicons name="chevron-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Select Brand</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity onPress={() => navigation.navigate('MainTabs')} style={styles.backButton}>
+          <Ionicons name="home-outline" size={22} color="#0F172A" />
+        </TouchableOpacity>
       </View>
 
       <FlatList 
@@ -184,7 +186,7 @@ export default function DeviceSelectionScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: '#F8FAFC', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 10, color: '#64748B', fontWeight: '600', fontSize: 14 },
   

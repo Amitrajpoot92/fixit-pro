@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'; 
-import { WebView } from 'react-native-webview'; 
+import RazorpayCheckout from 'react-native-razorpay';
 import { encode } from 'base-64'; 
 
 import { db, auth } from '../../services/firebaseConfig';
@@ -19,7 +19,6 @@ const RAZORPAY_KEY_SECRET = process.env.EXPO_PUBLIC_RAZORPAY_KEY_SECRET;
 export default function PaymentSelectionScreen({ navigation, route }) {
   const [method, setMethod] = useState('upi');
   const [loading, setLoading] = useState(false);
-  const [paymentUrl, setPaymentUrl] = useState(null); 
   
   // Draft Order States (Security against app crashes)
   const draftDocId = useRef(null);
@@ -140,7 +139,7 @@ export default function PaymentSelectionScreen({ navigation, route }) {
           return;
         }
 
-        const response = await fetch('https://api.razorpay.com/v1/payment_links', {
+        const response = await fetch('https://api.razorpay.com/v1/orders', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -149,27 +148,62 @@ export default function PaymentSelectionScreen({ navigation, route }) {
           body: JSON.stringify({
             amount: finalAmountInPaise, 
             currency: "INR",
-            accept_partial: false,
-            reference_id: draftOrderId.current,
-            description: `Payment for FixitPro Booking`,
-            customer: {
-              name: draft.customerData.name || "Customer",
-              email: draft.customerData.email || "guest@example.com",
-              contact: safePhone
-            },
-            notify: { sms: false, email: false },
-            reminder_enable: false,
-            callback_url: "https://fixitpro.com/payment-success",
-            callback_method: "get"
+            receipt: draftOrderId.current
           })
         });
 
         const data = await response.json();
         
-        if (data.short_url) {
-          setPaymentUrl(data.short_url); 
+        if (data.id) {
+          var options = {
+            description: 'Payment for FixitPro Booking',
+            image: 'https://i.imgur.com/3g7nmJC.png',
+            currency: 'INR',
+            key: RAZORPAY_KEY_ID,
+            amount: finalAmountInPaise,
+            name: 'FixitPro',
+            order_id: data.id,
+            prefill: {
+              email: draft.customerData.email || 'guest@example.com',
+              contact: safePhone,
+              name: draft.customerData.name || 'Customer'
+            },
+            theme: {color: '#3B82F6'}
+          }
+          
+          RazorpayCheckout.open(options).then(async (razorpayData) => {
+            // handle success
+            setLoading(true);
+            if (draftDocId.current && draftOrderId.current) {
+              await confirmOnlineOrder(draftDocId.current, draftOrderId.current, razorpayData.razorpay_payment_id); 
+            } else {
+              Alert.alert("Error", "Order sync failed.");
+              setLoading(false);
+            }
+          }).catch(async (error) => {
+            // handle failure
+            setLoading(false);
+            if (draftDocId.current) await updateDoc(doc(db, 'bookings', draftDocId.current), { status: 'Payment_Failed' });
+            
+            let errorMsg = "Transaction could not be completed. Please try again.";
+            if (error && error.description) {
+               try {
+                  const parsed = JSON.parse(error.description);
+                  if (parsed.error && parsed.error.reason === 'payment_cancelled') {
+                      errorMsg = "Payment was cancelled by you.";
+                  } else {
+                      errorMsg = "Payment failed or was interrupted. Please try again.";
+                  }
+               } catch (e) {
+                  // Not JSON, use as is
+                  errorMsg = error.description;
+               }
+            }
+            Alert.alert("Payment Failed", errorMsg);
+          });
+
         } else {
-          const razorpayError = data.error?.description || "Failed to generate payment link via Razorpay API.";
+          const razorpayError = data.error?.description || "Failed to generate order via Razorpay API.";
           Alert.alert("Razorpay Error", razorpayError);
           setLoading(false);
         }
@@ -180,69 +214,6 @@ export default function PaymentSelectionScreen({ navigation, route }) {
     }
   };
 
-  const extractParam = (url, paramName) => {
-    const regex = new RegExp(`[?&]${paramName}=([^&]+)`);
-    const match = url.match(regex);
-    return match ? match[1] : null;
-  };
-
-  // 4️⃣ AUTO VERIFICATION VIA WEBVIEW
-  const handleNavigationStateChange = async (navState) => {
-    const currentUrl = navState.url;
-
-    if (currentUrl.includes('fixitpro.com/payment-success')) {
-      if (currentUrl.includes('razorpay_payment_link_status=paid')) {
-        const razorpayPaymentId = extractParam(currentUrl, 'razorpay_payment_id') || 'Verified_By_Razorpay';
-
-        setPaymentUrl(null); 
-        setLoading(true);
-        
-        if (draftDocId.current && draftOrderId.current) {
-          await confirmOnlineOrder(draftDocId.current, draftOrderId.current, razorpayPaymentId); 
-        } else {
-          Alert.alert("Error", "Order sync failed.");
-          setLoading(false);
-        }
-      } else {
-        setPaymentUrl(null);
-        setLoading(false);
-        if (draftDocId.current) await updateDoc(doc(db, 'bookings', draftDocId.current), { status: 'Payment_Failed' });
-        Alert.alert("Payment Failed", "Transaction could not be completed.");
-      }
-    } else if (currentUrl.includes('payment-failure') || currentUrl.includes('cancel')) {
-      setPaymentUrl(null);
-      setLoading(false);
-      if (draftDocId.current) await updateDoc(doc(db, 'bookings', draftDocId.current), { status: 'Payment_Cancelled' });
-      Alert.alert("Payment Cancelled", "Your transaction was cancelled.");
-    }
-  };
-
-  if (paymentUrl) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF' }}>
-        <View style={styles.webviewHeader}>
-          <TouchableOpacity 
-            style={styles.webviewCloseBtn}
-            onPress={() => {
-              setPaymentUrl(null);
-              setLoading(false);
-              Alert.alert("Cancelled", "You cancelled the payment process.");
-            }}
-          >
-            <Ionicons name="close" size={24} color="#EF4444" />
-            <Text style={styles.webviewCloseText}>Cancel Payment</Text>
-          </TouchableOpacity>
-        </View>
-        <WebView 
-          source={{ uri: paymentUrl }}
-          onNavigationStateChange={handleNavigationStateChange}
-          startInLoadingState={true}
-          renderLoading={() => <ActivityIndicator size="large" color={colors.primary} style={StyleSheet.absoluteFill} />}
-        />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
@@ -251,7 +222,9 @@ export default function PaymentSelectionScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Payment Method</Text>
-        <View style={{width: 44}} />
+        <TouchableOpacity onPress={() => navigation.navigate('MainTabs')} style={styles.backBtn}>
+          <Ionicons name="home-outline" size={22} color="#0F172A" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>

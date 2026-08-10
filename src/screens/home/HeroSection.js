@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Platform, FlatList, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // 🔥 Firebase Imports
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -11,9 +12,9 @@ import { db } from '../../services/firebaseConfig';
 const { width } = Dimensions.get('window');
 
 const shadowStyle = Platform.select({
-  ios: { shadowColor: '#1E293B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 },
-  android: { elevation: 5 },
-  web: { boxShadow: '0px 4px 10px rgba(30, 41, 59, 0.1)' }
+  ios: { shadowColor: '#1E293B', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 12 },
+  android: { elevation: 6 },
+  web: { boxShadow: '0px 6px 12px rgba(30, 41, 59, 0.15)' }
 });
 
 // Default Fallback Banner in case DB is empty
@@ -27,8 +28,8 @@ const DEFAULT_BANNERS = [
     titleLine3: 'At Your Doorstep',
     feature1: 'Pickup', feature2: 'Repair', feature3: 'Delivered',
     btnText: 'Book Repair Now',
-    color: colors.primaryDark,
-    image: null // 👈 Default Image completely removed
+    color: '#2563EB',
+    image: null
   }
 ];
 
@@ -65,7 +66,7 @@ export default function HeroSection({ navigation }) {
         flatListRef.current?.scrollToIndex({ index: next, animated: true });
         return next;
       });
-    }, 3500);
+    }, 4000);
 
     return () => clearInterval(timer);
   }, [banners.length]);
@@ -98,38 +99,47 @@ export default function HeroSection({ navigation }) {
     // 🟢 2. IF TEXT + IMAGE BANNER SELECTED
     return (
       <View style={{ width: width, alignItems: 'center' }}>
-        <View style={[styles.heroCard, { backgroundColor: item.color || colors.primaryDark }, shadowStyle]}>
+        <TouchableOpacity 
+          style={[styles.heroCard, { backgroundColor: item.color || '#2563EB' }, shadowStyle]}
+          onPress={() => navigation.navigate('DeviceSelection')}
+          activeOpacity={0.95}
+        >
+          {/* Glass Overlay Gradient for Premium Look */}
+          <LinearGradient
+            colors={['rgba(255,255,255,0.15)', 'rgba(0,0,0,0.3)']}
+            style={StyleSheet.absoluteFillObject}
+          />
           
           <View style={styles.heroLeft}>
             {/* Split Title into 3 Lines */}
-            <View style={{ marginBottom: 5 }}>
+            <View style={{ marginBottom: 8 }}>
               {!!item.titleLine1 && <Text style={styles.heroTitle}>{item.titleLine1}</Text>}
               {!!item.titleLine2 && <Text style={styles.heroTitle}>{item.titleLine2}</Text>}
               {!!item.titleLine3 && <Text style={styles.heroTitle}>{item.titleLine3}</Text>}
             </View>
 
             <View style={styles.heroFeatures}>
-               {item.feature1 ? <Text style={styles.heroFeatureText}><MaterialIcons name="verified" size={12} color={colors.accent}/> {item.feature1}</Text> : null}
-               {item.feature2 ? <Text style={styles.heroFeatureText}><MaterialIcons name="verified" size={12} color={colors.accent}/> {item.feature2}</Text> : null}
-               {item.feature3 ? <Text style={styles.heroFeatureText}><MaterialIcons name="verified" size={12} color={colors.accent}/> {item.feature3}</Text> : null}
+               {item.feature1 ? <Text style={styles.heroFeatureText}><MaterialIcons name="verified" size={14} color="#FDE047"/> {item.feature1}</Text> : null}
+               {item.feature2 ? <Text style={styles.heroFeatureText}><MaterialIcons name="verified" size={14} color="#FDE047"/> {item.feature2}</Text> : null}
+               {item.feature3 ? <Text style={styles.heroFeatureText}><MaterialIcons name="verified" size={14} color="#FDE047"/> {item.feature3}</Text> : null}
             </View>
             
             {item.btnText ? (
-              <TouchableOpacity style={styles.heroBtn} onPress={() => navigation.navigate('DeviceSelection')}>
+              <View style={styles.heroBtn}>
                  <Text style={styles.heroBtnText}>{item.btnText}</Text>
-                 <MaterialIcons name="arrow-forward" size={16} color={colors.black}/>
-              </TouchableOpacity>
+                 <MaterialIcons name="arrow-forward" size={16} color="#0F172A"/>
+              </View>
             ) : null}
           </View>
 
-          {/* Right Side Image (ONLY renders if uploaded, no default image) */}
+          {/* Right Side Image */}
           <View style={styles.heroRight}>
             {item.image ? (
               <Image source={{ uri: item.image }} style={styles.rightSideImage} resizeMode="contain" />
             ) : null}
           </View>
 
-        </View>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -139,8 +149,8 @@ export default function HeroSection({ navigation }) {
       {/* 🚀 BANNER SECTION */}
       <View style={styles.bannerContainer}>
         {loading ? (
-          <View style={[styles.heroCard, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.primaryDark }]}>
-            <ActivityIndicator size="large" color="#FFF" />
+          <View style={[styles.heroCard, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#E2E8F0' }]}>
+            <ActivityIndicator size="large" color="#3B82F6" />
           </View>
         ) : banners.length === 1 ? (
           // NO SCROLLING IF ONLY 1 BANNER
@@ -172,20 +182,25 @@ export default function HeroSection({ navigation }) {
       {/* ACTION GRID (Icons) */}
       <View style={styles.actionGrid}>
         {[
-          {n: 'Book Repair', i: 'build', c: colors.tintBlue, ic: colors.iconBlue, route: 'DeviceSelection'}, 
-          {n: 'Pickup & Drop', i: 'moped', c: colors.tintGreen, ic: colors.success, route: 'PickupDropInfo'},
-          {n: 'Home Service', i: 'home', c: colors.tintOrange, ic: colors.iconOrange, route: 'HomeServiceInfo'},
-          {n: 'Accessories', i: 'smartphone', c: colors.tintPurple, ic: colors.iconPurple, route: 'ProductsTab'},
-          {n: 'Support', i: 'support-agent', c: colors.tintPink, ic: colors.iconPink, route: 'Support'},
+          {n: 'Book Repair', i: 'build', g: ['#3B82F6', '#2563EB'], route: 'DeviceSelection'}, 
+          {n: 'Pickup & Drop', i: 'moped', g: ['#10B981', '#059669'], route: 'PickupDropInfo'},
+          {n: 'Home Service', i: 'home', g: ['#F59E0B', '#D97706'], route: 'HomeServiceInfo'},
+          {n: 'Accessories', i: 'smartphone', g: ['#8B5CF6', '#7C3AED'], route: 'ProductsTab'},
+          {n: 'Support', i: 'support-agent', g: ['#EC4899', '#DB2777'], route: 'Support'},
         ].map((item, idx) => (
           <TouchableOpacity 
             key={idx} 
             style={styles.actionItem}
-            onPress={() => item.route ? navigation.navigate(item.route) : null} 
+            onPress={() => item.route ? navigation.navigate(item.route) : null}
+            activeOpacity={0.8}
           >
-            <View style={[styles.actionIconCircle, {backgroundColor: item.c}, shadowStyle]}>
-              <MaterialIcons name={item.i} size={28} color={item.ic} />
-            </View>
+            <LinearGradient 
+              colors={item.g} 
+              start={{x: 0, y: 0}} end={{x: 1, y: 1}}
+              style={[styles.actionIconCircle, shadowStyle]}
+            >
+              <MaterialIcons name={item.i} size={26} color="#FFF" />
+            </LinearGradient>
             <Text style={styles.actionLabel}>{item.n}</Text>
           </TouchableOpacity>
         ))}
@@ -196,45 +211,50 @@ export default function HeroSection({ navigation }) {
 
 const styles = StyleSheet.create({
   bannerContainer: {
-    height: 230, 
-    marginTop: 10,
+    height: 240, 
+    marginTop: 15,
     alignItems: 'center'
   },
   heroCard: { 
-    width: width - 30, 
+    width: width - 40, 
     height: 200,       
-    borderRadius: 20, 
-    padding: 20, 
+    borderRadius: 24, 
+    padding: 22, 
     flexDirection: 'row', 
     overflow: 'hidden' 
   },
   
-  heroLeft: { flex: 1.3, zIndex: 2, justifyContent: 'center' },
-  heroTitle: { color: colors.white, fontSize: 16, fontWeight: '800', lineHeight: 22 },
-  heroFeatures: { flexDirection: 'row', marginTop: 8, marginBottom: 12, flexWrap: 'wrap' },
-  heroFeatureText: { color: colors.white, fontSize: 10, marginRight: 10, fontWeight: '600', marginBottom: 5 },
+  heroLeft: { flex: 1.4, zIndex: 2, justifyContent: 'center' },
+  heroTitle: { color: colors.white, fontSize: 18, fontWeight: '900', lineHeight: 24, letterSpacing: 0.5 },
+  heroFeatures: { flexDirection: 'row', marginTop: 12, marginBottom: 16, flexWrap: 'wrap', gap: 8 },
+  heroFeatureText: { color: colors.white, fontSize: 11, fontWeight: '700' },
   heroBtn: { 
-    backgroundColor: colors.accent, 
+    backgroundColor: '#FFF', 
     paddingVertical: 10, 
-    paddingHorizontal: 14, 
-    borderRadius: 8, 
+    paddingHorizontal: 16, 
+    borderRadius: 12, 
     alignSelf: 'flex-start', 
     flexDirection: 'row', 
-    alignItems: 'center' 
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 4
   },
-  heroBtnText: { fontWeight: '800', fontSize: 12, color: colors.black, marginRight: 6 },
+  heroBtnText: { fontWeight: '900', fontSize: 13, color: '#0F172A', marginRight: 6 },
   
   heroRight: { flex: 1, justifyContent: 'center', alignItems: 'flex-end', position: 'relative' },
-  rightSideImage: { width: 140, height: 160, position: 'absolute', right: -20, bottom: -10, zIndex: 1 },
+  rightSideImage: { width: 150, height: 180, position: 'absolute', right: -25, bottom: -15, zIndex: 1 },
 
   fullCoverImage: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
 
-  sliderDots: { position: 'absolute', bottom: 5, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(148, 163, 184, 0.4)', marginHorizontal: 3 },
-  activeDot: { backgroundColor: colors.primary, width: 16 },
+  sliderDots: { position: 'absolute', bottom: 10, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255, 255, 255, 0.4)', marginHorizontal: 4 },
+  activeDot: { backgroundColor: '#3B82F6', width: 20, borderRadius: 4 },
 
-  actionGrid: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 15, marginTop: 10 },
+  actionGrid: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 15 },
   actionItem: { alignItems: 'center', width: width / 5.5 },
-  actionIconCircle: { width: 60, height: 60, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-  actionLabel: { fontSize: 10, fontWeight: '700', textAlign: 'center', color: colors.textDark },
+  actionIconCircle: { width: 56, height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  actionLabel: { fontSize: 11, fontWeight: '800', textAlign: 'center', color: '#334155', letterSpacing: -0.3 },
 });

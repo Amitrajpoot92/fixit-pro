@@ -20,7 +20,9 @@
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:23592787650:web:e98034dd63cc271ca4e55b",
         "EXPO_PUBLIC_IMAGEKIT_URL_ENDPOINT": "https://ik.imagekit.io/esuu73cdn",
         "EXPO_PUBLIC_IMAGEKIT_PUBLIC_KEY": "public_fmFrXf3YE/OcyFK1TEdUbQG+KLM=",
-        "EXPO_PUBLIC_IMAGEKIT_PRIVATE_KEY": "private_x77JBMB4vB985OM8bOdAhUEoxW8="
+        "EXPO_PUBLIC_IMAGEKIT_PRIVATE_KEY": "private_x77JBMB4vB985OM8bOdAhUEoxW8=",
+        "EXPO_PUBLIC_RAZORPAY_KEY_ID": "rzp_live_TKOk0ZFzqXF20S",
+        "EXPO_PUBLIC_RAZORPAY_KEY_SECRET": "oLNKuPuKpeBwEmx5ef02ezZa"
       }
     },
     "production": {
@@ -33,7 +35,9 @@
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:23592787650:web:e98034dd63cc271ca4e55b",
         "EXPO_PUBLIC_IMAGEKIT_URL_ENDPOINT": "https://ik.imagekit.io/esuu73cdn",
         "EXPO_PUBLIC_IMAGEKIT_PUBLIC_KEY": "public_fmFrXf3YE/OcyFK1TEdUbQG+KLM=",
-        "EXPO_PUBLIC_IMAGEKIT_PRIVATE_KEY": "private_x77JBMB4vB985OM8bOdAhUEoxW8="
+        "EXPO_PUBLIC_IMAGEKIT_PRIVATE_KEY": "private_x77JBMB4vB985OM8bOdAhUEoxW8=",
+        "EXPO_PUBLIC_RAZORPAY_KEY_ID": "rzp_live_TKOk0ZFzqXF20S",
+        "EXPO_PUBLIC_RAZORPAY_KEY_SECRET": "oLNKuPuKpeBwEmx5ef02ezZa"
       }
     }
   },
