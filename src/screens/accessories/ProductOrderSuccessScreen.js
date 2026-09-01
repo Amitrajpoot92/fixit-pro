@@ -1,6 +1,6 @@
 // src/screens/accessories/ProductOrderSuccessScreen.js
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, SafeAreaView } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, SafeAreaView, BackHandler } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 
@@ -10,6 +10,17 @@ export default function ProductOrderSuccessScreen({ navigation, route }) {
   const paymentMode = route.params?.paymentMode || 'Offline'; 
   
   const isOnline = paymentMode === 'Online';
+
+  // 🚀 Intercept hardware back button to navigate to Home
+  useEffect(() => {
+    const onBackPress = () => {
+      navigation.navigate('MainTabs');
+      return true; // Prevent default back action
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backHandler.remove();
+  }, [navigation]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -38,8 +49,8 @@ export default function ProductOrderSuccessScreen({ navigation, route }) {
             : `Your product order `}
           <Text style={{fontWeight: '800', color: '#0F172A'}}>#{orderId}</Text> 
           {isOnline
-            ? ` has been placed. We will ship it to your delivery address soon. Track your order at order's tab in products orders. `
-            : ` has been placed. Please pay the delivery executive at the time of delivery. Track your order at order's tab in products orders.`}
+            ? ` has been placed. We will ship it to your delivery address soon.\n\nYou can track your order from the Orders section of the app.`
+            : ` has been placed. Please pay the delivery executive at the time of delivery.\n\nYou can track your order from the Orders section of the app.`}
         </Text>
 
         <View style={styles.deliveryBox}>

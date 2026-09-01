@@ -39,7 +39,7 @@ export default function Earnings() {
 
           snapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            const amount = Number(data.totalAmount) || 0;
+            const amount = (Number(data.totalAmount) || 0) + (Number(data.discountAmount) || 0);
             const mode = data.paymentMode || 'Offline'; 
             const isSettled = data.isSettled === true;
 
@@ -47,7 +47,7 @@ export default function Earnings() {
 
             if (!isSettled) {
               unsettledGross += amount;
-              if (mode === 'Online') {
+              if (mode === 'Online' || mode === 'Wallet') {
                 unsettledOnline += amount;
               } else {
                 unsettledOffline += amount;

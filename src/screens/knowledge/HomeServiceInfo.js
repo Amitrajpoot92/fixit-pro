@@ -28,7 +28,7 @@ export default function HomeServiceInfo({ navigation }) {
         </Text>
         <View style={styles.steps}>
           <Text style={styles.step}>1. Select your device and the required repair service.</Text>
-          <Text style={styles.step}>2. Choose the "Home Visit" option on the Checkout page.</Text>
+          <Text style={styles.step}>2. Choose the "Pickup & Drop" option on the Checkout page.</Text>
           <Text style={styles.step}>3. Select your preferred Date and Time slot.</Text>
           <Text style={styles.step}>4. Our technician will arrive at your address and fix your device instantly.</Text>
         </View>

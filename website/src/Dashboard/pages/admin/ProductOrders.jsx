@@ -205,6 +205,11 @@ export default function ProductOrders() {
                         {/* Items & Payment */}
                         <td className="p-4 align-top">
                           <div className="font-black text-white text-base mb-1">₹{order.totalAmount} <span className="text-xs text-slate-500 font-medium">({itemCount} Items)</span></div>
+                          {order.appliedCoupon && (
+                            <div className="text-[10px] font-bold text-emerald-400 mb-1 flex items-center gap-1">
+                              🏷️ {order.appliedCoupon} (-₹{order.discountAmount})
+                            </div>
+                          )}
                           <span className={`flex items-center gap-1 px-2 py-0.5 w-fit rounded text-[10px] font-bold border ${isPrepaid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-orange-500/10 text-orange-400 border-orange-500/30'}`}>
                             {isPrepaid ? <CreditCard size={12} /> : <Banknote size={12} />} {isPrepaid ? 'PRE-PAID' : 'COD'}
                           </span>

@@ -47,16 +47,16 @@ export default function Cta() {
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
               
               {/* Primary White Button (Apple Style) */}
-              <button className="w-full sm:w-auto bg-white text-slate-950 px-8 py-3.5 rounded-2xl font-black text-base hover:bg-slate-100 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center justify-center gap-3 hover:-translate-y-1 active:scale-95">
+              <button onClick={() => window.open('https://play.google.com/store/apps/details?id=com.codewebx.fixitpro', '_blank')} className="w-full sm:w-auto bg-white text-slate-950 px-8 py-3.5 rounded-2xl font-black text-base hover:bg-slate-100 transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center justify-center gap-3 hover:-translate-y-1 active:scale-95">
                 <Apple className="w-7 h-7 fill-slate-950" />
                 <div className="text-left flex flex-col">
                   <span className="text-[10px] leading-none uppercase tracking-widest opacity-80 mb-1">Download on</span>
-                  <span className="leading-none font-black text-lg">Play Store</span>
+                  <span className="leading-none font-black text-lg">App Store</span>
                 </div>
               </button>
 
               {/* Secondary Dark Glass Button (Play Store Style) */}
-              <button className="w-full sm:w-auto bg-slate-800/80 backdrop-blur-md text-white border border-slate-700 px-8 py-3.5 rounded-2xl font-bold text-base hover:bg-slate-700 hover:border-slate-500 transition-all duration-300 shadow-lg flex items-center justify-center gap-3 hover:-translate-y-1 active:scale-95">
+              <button onClick={() => window.open('https://play.google.com/store/apps/details?id=com.codewebx.fixitpro', '_blank')} className="w-full sm:w-auto bg-slate-800/80 backdrop-blur-md text-white border border-slate-700 px-8 py-3.5 rounded-2xl font-bold text-base hover:bg-slate-700 hover:border-slate-500 transition-all duration-300 shadow-lg flex items-center justify-center gap-3 hover:-translate-y-1 active:scale-95">
                 <Play className="w-6 h-6 fill-white" />
                 <div className="text-left flex flex-col">
                   <span className="text-[10px] leading-none uppercase tracking-widest opacity-80 mb-1">Get it on</span>

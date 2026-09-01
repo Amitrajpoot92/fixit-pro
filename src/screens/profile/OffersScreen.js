@@ -25,7 +25,7 @@ export default function OffersScreen({ navigation }) {
 
   // 🚀 Real-time fetch offers from Global 'offers' collection
   useEffect(() => {
-    const q = query(collection(db, 'offers'));
+    const q = query(collection(db, 'coupons'), where('isGlobal', '==', true), where('isActive', '==', true));
     
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedOffers = [];

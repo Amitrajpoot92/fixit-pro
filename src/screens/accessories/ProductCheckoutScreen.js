@@ -2,13 +2,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, ScrollView, 
-  TouchableOpacity, Image, Platform, StatusBar, ActivityIndicator, Alert, Modal
+  TouchableOpacity, Image, Platform, StatusBar, ActivityIndicator, Alert, Modal, TextInput
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 
 // 🔥 Firebase & WebView Imports
-import { collection, addDoc, serverTimestamp, query, onSnapshot, doc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, getDoc, getDocs, writeBatch, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../../services/firebaseConfig';
 import { useAuth } from '../../context/AuthContext'; 
 import RazorpayCheckout from 'react-native-razorpay';
@@ -26,26 +26,36 @@ export default function ProductCheckoutScreen({ navigation, route }) {
   const [paymentMethod, setPaymentMethod] = useState('Online');
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   
+  // 🎟️ Coupon States
+  const [couponCode, setCouponCode] = useState('');
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState(null); // { code, discount, type, referrerUid, docId }
+
   const draftDocId = useRef(null);
   const draftOrderId = useRef(null);
 
   // User details & Address states
   const [userData, setUserData] = useState(null);
+  const [walletBalance, setWalletBalance] = useState(0); // 🚀 Add wallet balance state
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
 
   const deliveryFee = 50;
-  const totalAmount = initialTotalAmount + deliveryFee;
+  const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
+  const totalAmount = Math.max(initialTotalAmount + deliveryFee - discountAmount, 0);
 
   useEffect(() => {
     if (!user?.uid) return;
 
-    const fetchUserProfile = async () => {
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      if (userDoc.exists()) setUserData(userDoc.data());
-    };
-    fetchUserProfile();
+    // Fetch User Data & Wallet Balance
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribeUser = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setUserData(docSnap.data());
+        setWalletBalance(docSnap.data().walletBalance || 0); // 🚀 Read wallet balance
+      }
+    });
 
     const q = query(collection(db, 'users', user.uid, 'addresses'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -64,7 +74,10 @@ export default function ProductCheckoutScreen({ navigation, route }) {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+        unsubscribe();
+        unsubscribeUser();
+    };
   }, [user]);
 
   // 🛒 Helper: Clear Cart
@@ -81,6 +94,115 @@ export default function ProductCheckoutScreen({ navigation, route }) {
     } catch (e) {
       console.error("Error clearing cart: ", e);
     }
+  };
+
+  // 🎟️ COUPON LOGIC
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      Alert.alert("Error", "Please enter a coupon code.");
+      return;
+    }
+    setApplyingCoupon(true);
+    
+    try {
+      const formattedCode = couponCode.trim().toUpperCase();
+
+      // 1. Check if it's a Reward Coupon
+      const qRewards = query(
+        collection(db, 'coupons'), 
+        where('code', '==', formattedCode), 
+        where('isActive', '==', true), 
+        where('ownerUid', '==', user.uid)
+      );
+      const rewardSnap = await getDocs(qRewards);
+      
+      if (!rewardSnap.empty) {
+        const rewardData = rewardSnap.docs[0].data();
+        setAppliedCoupon({ 
+          code: formattedCode, 
+          discount: rewardData.discount || 30, 
+          type: 'reward', 
+          docId: rewardSnap.docs[0].id 
+        });
+        setApplyingCoupon(false);
+        Alert.alert("Success", `Reward coupon applied! You got ₹${rewardData.discount || 30} off.`);
+        return;
+      }
+
+      // 2. Check if it's a Global Coupon
+      const qGlobal = query(
+        collection(db, 'coupons'),
+        where('code', '==', formattedCode),
+        where('type', '==', 'global'),
+        where('isActive', '==', true)
+      );
+      const globalSnap = await getDocs(qGlobal);
+      if (!globalSnap.empty) {
+        const globalData = globalSnap.docs[0].data();
+        setAppliedCoupon({
+          code: formattedCode,
+          discount: globalData.discount,
+          type: 'global',
+          docId: globalSnap.docs[0].id
+        });
+        setApplyingCoupon(false);
+        Alert.alert("Success", `Promo applied! You got ₹${globalData.discount} off.`);
+        return;
+      }
+
+      // 3. Check if it's a Referral Code
+      const qReferral = query(collection(db, 'users'), where('referralCode', '==', formattedCode));
+      const refSnap = await getDocs(qReferral);
+      
+      if (!refSnap.empty) {
+        const referrer = refSnap.docs[0];
+        if (referrer.id === user.uid) {
+          Alert.alert("Invalid", "You cannot use your own referral code.");
+          setApplyingCoupon(false);
+          return;
+        }
+        
+        // Check if first order ever
+        const ordersQ = query(collection(db, 'product_orders'), where('userId', '==', user.uid));
+        const ordersSnap = await getDocs(ordersQ);
+        
+        if (!ordersSnap.empty) {
+          Alert.alert("Not Eligible", "Referral codes can only be used on your first order.");
+          setApplyingCoupon(false);
+          return;
+        }
+        
+        // Fetch dynamic discount
+        let refDiscount = 50;
+        try {
+          const snapRef = await getDoc(doc(db, 'settings', 'referral'));
+          if (snapRef.exists() && snapRef.data().referralDiscount) {
+            refDiscount = snapRef.data().referralDiscount;
+          }
+        } catch(e) {}
+
+        setAppliedCoupon({ 
+          code: formattedCode, 
+          discount: refDiscount, 
+          type: 'referral', 
+          referrerUid: referrer.id 
+        });
+        setApplyingCoupon(false);
+        Alert.alert("Success", `Referral code applied! You got ₹${refDiscount} off.`);
+        return;
+      }
+
+      Alert.alert("Invalid Coupon", "This coupon code is invalid or expired.");
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Could not apply coupon.");
+    }
+    setApplyingCoupon(false);
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
   };
 
   // 1️⃣ DRAFT ORDER CREATION
@@ -101,6 +223,11 @@ export default function ProductCheckoutScreen({ navigation, route }) {
       transactionId: 'PENDING',
       status: initialStatus, 
       orderType: 'Ecommerce', 
+      appliedCoupon: appliedCoupon?.code || null,
+      discountAmount: appliedCoupon?.discount || 0,
+      referrerUid: appliedCoupon?.referrerUid || null,
+      couponDocId: appliedCoupon?.docId || null,
+      referralRewarded: false,
       createdAt: serverTimestamp()
     };
 
@@ -119,6 +246,15 @@ export default function ProductCheckoutScreen({ navigation, route }) {
         updatedAt: serverTimestamp()
       });
       
+      // If a reward coupon was used, mark it as inactive (Used)
+      if (appliedCoupon && appliedCoupon.type === 'reward' && appliedCoupon.docId) {
+        await updateDoc(doc(db, 'coupons', appliedCoupon.docId), {
+          isActive: false,
+          usedAt: serverTimestamp(),
+          usedOrderId: displayOrderId
+        });
+      }
+
       await clearUserCart();
       setIsPlacingOrder(false);
       
@@ -146,6 +282,16 @@ export default function ProductCheckoutScreen({ navigation, route }) {
     if (paymentMethod === 'COD') {
       try {
         const draft = await createDraftOrder('Offline', 'Pending');
+        
+        // Mark reward coupon as inactive (Used)
+        if (appliedCoupon && appliedCoupon.type === 'reward' && appliedCoupon.docId) {
+          await updateDoc(doc(db, 'coupons', appliedCoupon.docId), {
+            isActive: false,
+            usedAt: serverTimestamp(),
+            usedOrderId: draft.orderId
+          });
+        }
+
         await clearUserCart();
         setIsPlacingOrder(false);
         // 🚀 UPDATED: Navigate to ProductOrderSuccess
@@ -155,8 +301,54 @@ export default function ProductCheckoutScreen({ navigation, route }) {
         setIsPlacingOrder(false);
       }
     } else {
-      // 🚀 ONLINE PAYMENT LOGIC (RAZORPAY)
-      try {
+        // 🚀 WALLET LOGIC
+        if (paymentMethod === 'Wallet') {
+          if (walletBalance < totalAmount) {
+            Alert.alert("Insufficient Balance", "You do not have enough wallet balance for this order. Please add money or choose another method.");
+            setIsPlacingOrder(false);
+            return;
+          }
+
+          // 1. Create Order
+          const { docId, orderId } = await createDraftOrder('Wallet', 'Pending');
+          
+          // 2. Deduct from wallet & add transaction
+          const userRef = doc(db, 'users', user.uid);
+          await updateDoc(userRef, {
+            walletBalance: increment(-totalAmount)
+          });
+          
+          await addDoc(collection(db, 'users', user.uid, 'transactions'), {
+            title: `Paid for Order #${orderId}`,
+            amount: totalAmount,
+            type: 'debit',
+            orderId: orderId,
+            createdAt: serverTimestamp()
+          });
+
+          // 3. Mark Order as Paid & Clear Cart
+          await updateDoc(doc(db, 'product_orders', docId), {
+            paymentStatus: 'Paid',
+            status: 'Pending',
+            transactionId: `WAL-${Date.now()}`
+          });
+          // If a reward coupon was used, mark it as inactive
+          if (appliedCoupon && appliedCoupon.type === 'reward' && appliedCoupon.docId) {
+            await updateDoc(doc(db, 'coupons', appliedCoupon.docId), {
+              isActive: false,
+              usedAt: serverTimestamp(),
+              usedOrderId: orderId
+            });
+          }
+
+          await clearUserCart();
+          setIsPlacingOrder(false);
+          navigation.navigate('ProductOrderSuccess', { orderId: orderId, paymentMode: 'Online' });
+          return;
+        }
+
+        // RAZORPAY LOGIC (Online)
+        try {
         const draft = await createDraftOrder('Online', 'Payment_Pending');
         draftDocId.current = draft.docId;
         draftOrderId.current = draft.orderId;
@@ -306,6 +498,42 @@ export default function ProductCheckoutScreen({ navigation, route }) {
           </View>
         </View>
 
+        {/* 🎟️ APPLY COUPON SECTION */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Coupons & Offers</Text>
+          {appliedCoupon ? (
+            <View style={styles.appliedCouponCard}>
+              <View style={styles.appliedCouponLeft}>
+                <MaterialIcons name="verified" size={24} color="#16A34A" />
+                <View style={{marginLeft: 10}}>
+                  <Text style={styles.appliedCouponCode}>{appliedCoupon.code}</Text>
+                  <Text style={styles.appliedCouponSaved}>You saved ₹{appliedCoupon.discount}</Text>
+                </View>
+              </View>
+              <TouchableOpacity onPress={removeCoupon} style={styles.removeCouponBtn}>
+                <Text style={styles.removeCouponText}>REMOVE</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.couponInputWrapper}>
+              <TextInput
+                style={styles.couponInput}
+                placeholder="Enter Coupon or Referral Code"
+                value={couponCode}
+                onChangeText={setCouponCode}
+                autoCapitalize="characters"
+              />
+              <TouchableOpacity 
+                style={[styles.applyCouponBtn, !couponCode && { opacity: 0.5 }]} 
+                onPress={handleApplyCoupon}
+                disabled={!couponCode || applyingCoupon}
+              >
+                {applyingCoupon ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.applyCouponText}>APPLY</Text>}
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
         {/* 💳 PAYMENT METHOD */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Method</Text>
@@ -317,6 +545,22 @@ export default function ProductCheckoutScreen({ navigation, route }) {
             <Ionicons name="card" size={20} color={paymentMethod === 'Online' ? colors.link : '#64748B'} />
             <Text style={[styles.paymentText, paymentMethod === 'Online' && styles.paymentTextActive]}>Pay Online (UPI, Cards)</Text>
             {paymentMethod === 'Online' && <Ionicons name="checkmark-circle" size={20} color={colors.link} />}
+          </TouchableOpacity>
+          
+          {/* 🚀 WALLET OPTION */}
+          <TouchableOpacity 
+            style={[styles.paymentOption, paymentMethod === 'Wallet' && styles.paymentOptionActive]}
+            onPress={() => setPaymentMethod('Wallet')}
+            disabled={isPlacingOrder}
+          >
+            <Ionicons name="wallet" size={20} color={paymentMethod === 'Wallet' ? colors.link : '#64748B'} />
+            <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={[styles.paymentText, paymentMethod === 'Wallet' && styles.paymentTextActive]}>Pay via Wallet</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: walletBalance >= totalAmount ? '#16A34A' : '#EF4444' }}>
+                ₹{walletBalance}
+              </Text>
+            </View>
+            {paymentMethod === 'Wallet' && <Ionicons name="checkmark-circle" size={20} color={colors.link} style={{marginLeft: 10}} />}
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -342,6 +586,12 @@ export default function ProductCheckoutScreen({ navigation, route }) {
               <Text style={styles.billLabel}>Delivery Fee</Text>
               <Text style={styles.billValue}>₹{deliveryFee}</Text>
             </View>
+            {appliedCoupon && (
+              <View style={styles.billRow}>
+                <Text style={[styles.billLabel, {color: '#16A34A'}]}>Discount Applied</Text>
+                <Text style={[styles.billValue, {color: '#16A34A'}]}>- ₹{appliedCoupon.discount}</Text>
+              </View>
+            )}
             <View style={styles.divider} />
             <View style={styles.billRow}>
               <Text style={styles.billTotalLabel}>Total to Pay</Text>
@@ -465,6 +715,18 @@ const styles = StyleSheet.create({
   webviewHeader: { padding: 15, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0', flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 15 },
   webviewCloseBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   webviewCloseText: { color: '#EF4444', fontWeight: 'bold', marginLeft: 5 },
+
+  // Coupon Styles
+  couponInputWrapper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  couponInput: { flex: 1, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 12, padding: 14, fontSize: 14, color: '#0F172A', fontWeight: '700' },
+  applyCouponBtn: { backgroundColor: '#0F172A', paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, justifyContent: 'center' },
+  applyCouponText: { color: '#FFF', fontWeight: '800', fontSize: 14 },
+  appliedCouponCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F0FDF4', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#DCFCE7' },
+  appliedCouponLeft: { flexDirection: 'row', alignItems: 'center' },
+  appliedCouponCode: { fontSize: 14, fontWeight: '800', color: '#166534', textTransform: 'uppercase' },
+  appliedCouponSaved: { fontSize: 12, fontWeight: '600', color: '#16A34A', marginTop: 2 },
+  removeCouponBtn: { backgroundColor: '#DCFCE7', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  removeCouponText: { fontSize: 12, fontWeight: '800', color: '#15803D' },
 
   // Modal Styles
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },

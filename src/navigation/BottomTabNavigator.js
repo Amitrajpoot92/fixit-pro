@@ -2,12 +2,12 @@
 import React from 'react';
 import { View, Text, Platform, StyleSheet, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons'; 
+import { Ionicons } from '@expo/vector-icons';
 
 import HomeScreen from '../screens/home/HomeScreen';
 import OrdersScreen from '../screens/orders/OrdersScreen';
 import BookingsScreen from '../screens/bookings/BookingsScreen';
-import ProfileScreen from '../screens/profile/ProfileScreen'; 
+import ProfileScreen from '../screens/profile/ProfileScreen';
 import ProductsMainScreen from '../screens/accessories/ProductsMainScreen'; // 🛍️ Added for middle button
 
 import { colors } from '../theme/colors';
@@ -19,10 +19,10 @@ const TabIcon = ({ focused, activeIcon, inactiveIcon, label }) => {
     <View style={styles.tabContent}>
       {/* Icon Wrapper */}
       <View style={[styles.iconBox, focused && styles.iconBoxActive]}>
-        <Ionicons 
-          name={focused ? activeIcon : inactiveIcon} 
-          size={22} 
-          color={focused ? colors.link : '#94A3B8'} 
+        <Ionicons
+          name={focused ? activeIcon : inactiveIcon}
+          size={22}
+          color={focused ? colors.link : '#94A3B8'}
         />
       </View>
       {/* Label */}
@@ -33,18 +33,6 @@ const TabIcon = ({ focused, activeIcon, inactiveIcon, label }) => {
   );
 };
 
-// 🚀 Custom Floating Button Component
-const CustomTabBarButton = ({ children, onPress }) => (
-  <TouchableOpacity
-    style={styles.floatingButtonContainer}
-    onPress={onPress}
-    activeOpacity={0.8}
-  >
-    <View style={styles.floatingButton}>
-      {children}
-    </View>
-  </TouchableOpacity>
-);
 
 export default function BottomTabNavigator() {
   return (
@@ -53,47 +41,39 @@ export default function BottomTabNavigator() {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: styles.standardTabBar,
-        tabBarItemStyle: { 
-          justifyContent: 'center', 
+        tabBarItemStyle: {
+          justifyContent: 'center',
           alignItems: 'center',
           paddingTop: 5,
-        }, 
+        },
       }}
     >
-      <Tab.Screen 
-        name="Home" 
-        component={HomeScreen} 
-        options={{ tabBarIcon: ({focused}) => <TabIcon focused={focused} activeIcon="home" inactiveIcon="home-outline" label="Home" /> }} 
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} activeIcon="home" inactiveIcon="home-outline" label="Home" /> }}
       />
-      <Tab.Screen 
-        name="Orders" 
-        component={OrdersScreen} 
-        options={{ tabBarIcon: ({focused}) => <TabIcon focused={focused} activeIcon="receipt" inactiveIcon="receipt-outline" label="Orders" /> }} 
-      />
-      
-      {/* 🟢 CENTER FLOATING BUTTON */}
-      <Tab.Screen 
-        name="ProductsTab" 
-        component={ProductsMainScreen} 
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="cart" size={28} color="#FFF" />
-            </View>
-          ),
-          tabBarButton: (props) => <CustomTabBarButton {...props} />
-        }} 
+      <Tab.Screen
+        name="Orders"
+        component={OrdersScreen}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} activeIcon="receipt" inactiveIcon="receipt-outline" label="Orders" /> }}
       />
 
-      <Tab.Screen 
-        name="Bookings" 
-        component={BookingsScreen} 
-        options={{ tabBarIcon: ({focused}) => <TabIcon focused={focused} activeIcon="calendar" inactiveIcon="calendar-outline" label="Bookings" /> }} 
+      <Tab.Screen
+        name="ProductsTab"
+        component={ProductsMainScreen}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} activeIcon="cart" inactiveIcon="cart-outline" label="Products" /> }}
       />
-      <Tab.Screen 
-        name="Profile" 
-        component={ProfileScreen} 
-        options={{ tabBarIcon: ({focused}) => <TabIcon focused={focused} activeIcon="person" inactiveIcon="person-outline" label="Profile" /> }} 
+
+      <Tab.Screen
+        name="Bookings"
+        component={BookingsScreen}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} activeIcon="calendar" inactiveIcon="calendar-outline" label="Bookings" /> }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon focused={focused} activeIcon="person" inactiveIcon="person-outline" label="Profile" /> }}
       />
     </Tab.Navigator>
   );
@@ -102,68 +82,43 @@ export default function BottomTabNavigator() {
 const styles = StyleSheet.create({
   standardTabBar: {
     backgroundColor: '#FFFFFF',
-    height: Platform.OS === 'ios' ? 85 : 65, 
+    height: Platform.OS === 'ios' ? 85 : 65,
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 5, 
+    paddingBottom: Platform.OS === 'ios' ? 20 : 5,
     ...Platform.select({
       ios: { shadowColor: '#1E293B', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 5 },
       android: { elevation: 8 },
     })
   },
-  
-  tabContent: { 
-    alignItems: 'center', 
+
+  tabContent: {
+    alignItems: 'center',
     justifyContent: 'center',
-    width: 60, 
+    width: 60,
   },
-  
-  iconBox: { 
-    width: 40, 
-    height: 25, 
-    justifyContent: 'center', 
+
+  iconBox: {
+    width: 40,
+    height: 25,
+    justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 12,
   },
-  
-  iconBoxActive: { 
-    backgroundColor: '#EFF6FF', 
-  },
-  
-  tabLabel: { 
-    fontSize: 10, 
-    fontWeight: '700', 
-    color: '#94A3B8',
-    marginTop: 4, 
-  },
-  
-  tabLabelActive: { 
-    color: colors.link, 
+
+  iconBoxActive: {
+    backgroundColor: '#EFF6FF',
   },
 
-  // Floating Button Styles
-  floatingButtonContainer: {
-    top: -25, // Lift it above the bottom bar
-    justifyContent: 'center',
-    alignItems: 'center',
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+    marginTop: 4,
   },
-  floatingButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.link,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.link,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.4,
-        shadowRadius: 5,
-      },
-      android: {
-        elevation: 8,
-      }
-    })
-  }
+
+
+  tabLabelActive: {
+    color: colors.link,
+  },
 });

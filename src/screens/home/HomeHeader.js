@@ -69,7 +69,7 @@ export default function HomeHeader({ navigation }) {
         activeOpacity={0.9}
       >
         <MaterialIcons name="search" size={22} color="#64748B" />
-        <Text style={styles.searchInput}>Search for services, accessories...</Text>
+        <Text style={styles.searchInput}>Search for cases, chargers, repairs...</Text>
         <View style={styles.micBox}>
           <MaterialIcons name="mic-none" size={20} color="#3B82F6" />
         </View>
@@ -80,10 +80,8 @@ export default function HomeHeader({ navigation }) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F8FAFC', // Slightly distinct header background
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(226, 232, 240, 0.5)',
+    backgroundColor: '#F8FAFC', 
+    paddingBottom: 10,
   },
   /* HEADER */
   header: { 
@@ -130,18 +128,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 20, 
     paddingHorizontal: 16,
     paddingVertical: 12, 
-    borderRadius: 16, 
+    borderRadius: 30, 
     borderWidth: 1, 
     borderColor: '#F1F5F9',
     ...Platform.select({
-      ios: { shadowColor: '#64748B', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 15 },
-      android: { elevation: 4 },
+      ios: { shadowColor: '#94A3B8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 10 },
+      android: { elevation: 2 },
     })
   },
-  searchInput: { marginLeft: 12, flex: 1, fontSize: 15, color: '#94A3B8', fontWeight: '500' },
+  searchInput: { marginLeft: 12, flex: 1, fontSize: 14, color: '#94A3B8', fontWeight: '500' },
   micBox: {
     backgroundColor: '#EFF6FF',
     padding: 6,
-    borderRadius: 10,
+    borderRadius: 20,
   }
 });

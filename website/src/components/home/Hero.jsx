@@ -73,11 +73,11 @@ export default function Hero() {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mt-8 md:mt-14 border-b border-slate-800 pb-10 lg:border-b-0 lg:pb-0">
-            <button className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 rounded-full bg-white text-slate-950 font-black text-sm md:text-lg hover:bg-slate-200 transition duration-300 flex items-center justify-center gap-3 shadow-[0_10px_25px_rgba(255,255,255,0.1)] active:scale-95">
+            <button onClick={() => window.open('https://play.google.com/store/apps/details?id=com.codewebx.fixitpro', '_blank')} className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 rounded-full bg-white text-slate-950 font-black text-sm md:text-lg hover:bg-slate-200 transition duration-300 flex items-center justify-center gap-3 shadow-[0_10px_25px_rgba(255,255,255,0.1)] active:scale-95">
                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 1h-11a3.5 3.5 0 00-3.5 3.5v15a3.5 3.5 0 003.5 3.5h11a3.5 3.5 0 003.5-3.5v-15a3.5 3.5 0 00-3.5-3.5zM12 21a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM18.5 17h-13V4.5a1.5 1.5 0 011.5-1.5h10a1.5 1.5 0 011.5 1.5V17z"></path></svg>
                Get it on Play Store
             </button>
-            <button className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 rounded-full bg-slate-800/80 text-white font-black text-sm md:text-lg hover:bg-slate-700 transition duration-300 shadow-lg border border-slate-700 flex items-center justify-center gap-3 active:scale-95">
+            <button onClick={() => window.open('https://play.google.com/store/apps/details?id=com.codewebx.fixitpro', '_blank')} className="w-full sm:w-auto px-8 md:px-12 py-4 md:py-5 rounded-full bg-slate-800/80 text-white font-black text-sm md:text-lg hover:bg-slate-700 transition duration-300 shadow-lg border border-slate-700 flex items-center justify-center gap-3 active:scale-95">
                <Download className="w-6 h-6" />
                Download App Store
             </button>

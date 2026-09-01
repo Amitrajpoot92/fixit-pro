@@ -182,9 +182,8 @@ export default function HeroSection({ navigation }) {
       {/* ACTION GRID (Icons) */}
       <View style={styles.actionGrid}>
         {[
-          {n: 'Book Repair', i: 'build', g: ['#3B82F6', '#2563EB'], route: 'DeviceSelection'}, 
-          {n: 'Pickup & Drop', i: 'moped', g: ['#10B981', '#059669'], route: 'PickupDropInfo'},
-          {n: 'Home Service', i: 'home', g: ['#F59E0B', '#D97706'], route: 'HomeServiceInfo'},
+          {n: 'Top Offers', i: 'local-offer', g: ['#10B981', '#059669'], route: 'ProductsTab'}, 
+          {n: 'Book Repair', i: 'build', g: ['#3B82F6', '#2563EB'], route: 'DeviceSelection'},
           {n: 'Accessories', i: 'smartphone', g: ['#8B5CF6', '#7C3AED'], route: 'ProductsTab'},
           {n: 'Support', i: 'support-agent', g: ['#EC4899', '#DB2777'], route: 'Support'},
         ].map((item, idx) => (
@@ -212,7 +211,7 @@ export default function HeroSection({ navigation }) {
 const styles = StyleSheet.create({
   bannerContainer: {
     height: 240, 
-    marginTop: 15,
+    marginTop: 5,
     alignItems: 'center'
   },
   heroCard: { 

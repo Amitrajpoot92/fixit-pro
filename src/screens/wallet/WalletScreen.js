@@ -9,14 +9,22 @@ import {
   FlatList, 
   Platform, 
   StatusBar,
-  ActivityIndicator
+  ActivityIndicator,
+  Modal,
+  TextInput,
+  Alert
 } from 'react-native';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
-import { collection, query, orderBy, onSnapshot, doc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, addDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import RazorpayCheckout from 'react-native-razorpay';
+import { encode } from 'base-64';
 
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/firebaseConfig';
+
+const RAZORPAY_KEY_ID = process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID; 
+const RAZORPAY_KEY_SECRET = process.env.EXPO_PUBLIC_RAZORPAY_KEY_SECRET;
 
 export default function WalletScreen({ navigation }) {
   const { user } = useAuth();
@@ -24,6 +32,11 @@ export default function WalletScreen({ navigation }) {
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Modal State
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [addAmount, setAddAmount] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -55,6 +68,85 @@ export default function WalletScreen({ navigation }) {
       unsubscribeTx();
     };
   }, [user]);
+
+  // 🚀 Add Money Logic via Razorpay
+  const handleAddMoney = async () => {
+    const amount = Number(addAmount);
+    if (!amount || amount < 1) {
+      Alert.alert("Invalid Amount", "Please enter a valid amount (Min ₹1).");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const finalAmountInPaise = Math.round(amount * 100);
+      const basicAuth = encode(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`);
+      
+      const response = await fetch('https://api.razorpay.com/v1/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${basicAuth}`
+        },
+        body: JSON.stringify({
+          amount: finalAmountInPaise, 
+          currency: "INR",
+          receipt: `wallet_${Date.now()}`
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.id) {
+        var options = {
+          description: 'Add Money to FixitPro Wallet',
+          image: 'https://i.imgur.com/3g7nmJC.png',
+          currency: 'INR',
+          key: RAZORPAY_KEY_ID,
+          amount: finalAmountInPaise,
+          name: 'FixitPro Wallet',
+          order_id: data.id,
+          prefill: {
+            email: user?.email || 'user@example.com',
+            contact: user?.phoneNumber || '9999999999',
+            name: user?.displayName || 'Customer'
+          },
+          theme: {color: '#0284C7'}
+        };
+        
+        RazorpayCheckout.open(options).then(async (razorpayData) => {
+          // Success: Update Balance and Add Transaction
+          const userRef = doc(db, 'users', user.uid);
+          await updateDoc(userRef, {
+            walletBalance: increment(amount)
+          });
+
+          await addDoc(collection(db, 'users', user.uid, 'transactions'), {
+            title: 'Money Added via Razorpay',
+            amount: amount,
+            type: 'credit',
+            paymentId: razorpayData.razorpay_payment_id,
+            createdAt: serverTimestamp()
+          });
+          
+          setIsProcessing(false);
+          setIsModalVisible(false);
+          setAddAmount('');
+          Alert.alert("Success", `₹${amount} added to your wallet successfully!`);
+          
+        }).catch((error) => {
+          setIsProcessing(false);
+          Alert.alert("Payment Failed", "Could not complete the transaction.");
+        });
+      } else {
+        setIsProcessing(false);
+        Alert.alert("Error", "Failed to generate Razorpay order.");
+      }
+    } catch (e) {
+      setIsProcessing(false);
+      Alert.alert("Error", e.message);
+    }
+  };
 
   // UI Component for individual transaction
   const renderTransaction = ({ item }) => {
@@ -108,8 +200,8 @@ export default function WalletScreen({ navigation }) {
         </View>
         <Text style={styles.balanceAmount}>₹{balance}</Text>
         
-        {/* Add Money Button (Future scope ke liye UI me daal diya hai) */}
-        <TouchableOpacity style={styles.addMoneyBtn} onPress={() => alert('Add Money Gateway, will be live in the next update of this Platform.')}>
+        {/* Add Money Button */}
+        <TouchableOpacity style={styles.addMoneyBtn} onPress={() => setIsModalVisible(true)}>
           <MaterialIcons name="add" size={18} color={colors.primary} />
           <Text style={styles.addMoneyText}>Add Money</Text>
         </TouchableOpacity>
@@ -137,6 +229,39 @@ export default function WalletScreen({ navigation }) {
           />
         )}
       </View>
+
+      {/* 🔹 Add Money Modal */}
+      <Modal visible={isModalVisible} transparent animationType="slide">
+        <View style={styles.modalBg}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Add Money to Wallet</Text>
+            <Text style={styles.modalSub}>Enter amount to top up your wallet</Text>
+            
+            <TextInput
+              style={styles.amountInput}
+              placeholder="₹ Amount"
+              keyboardType="numeric"
+              value={addAmount}
+              onChangeText={setAddAmount}
+              autoFocus
+            />
+            
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setIsModalVisible(false)} disabled={isProcessing}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmBtn} onPress={handleAddMoney} disabled={isProcessing}>
+                {isProcessing ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Text style={styles.confirmBtnText}>Add ₹{addAmount || '0'}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -171,5 +296,17 @@ const styles = StyleSheet.create({
 
   emptyBox: { alignItems: 'center', marginTop: 50 },
   emptyText: { fontSize: 16, fontWeight: '700', color: '#475569', marginTop: 15 },
-  emptySubText: { fontSize: 13, color: '#94A3B8', marginTop: 5 }
+  emptySubText: { fontSize: 13, color: '#94A3B8', marginTop: 5 },
+
+  // Modal
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalContainer: { backgroundColor: '#FFF', padding: 25, borderRadius: 24, shadowColor: '#000', shadowOffset: {width: 0, height: 10}, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+  modalTitle: { fontSize: 22, fontWeight: '900', color: '#0F172A', marginBottom: 5 },
+  modalSub: { fontSize: 14, color: '#64748B', marginBottom: 20 },
+  amountInput: { backgroundColor: '#F1F5F9', fontSize: 24, fontWeight: '700', padding: 15, borderRadius: 16, textAlign: 'center', marginBottom: 25, color: '#0F172A' },
+  modalBtns: { flexDirection: 'row', gap: 15 },
+  cancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 14, backgroundColor: '#F1F5F9', alignItems: 'center' },
+  cancelBtnText: { color: '#475569', fontWeight: '700', fontSize: 16 },
+  confirmBtn: { flex: 1, paddingVertical: 15, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center' },
+  confirmBtnText: { color: '#FFF', fontWeight: '700', fontSize: 16 }
 });

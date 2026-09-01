@@ -25,7 +25,7 @@ export default function CheckoutScreen({ navigation, route }) {
   const selectedTechId = route.params?.selectedTechId; 
   const selectedTechName = route.params?.selectedTechName;
 
-  const [mode, setMode] = useState('home'); 
+  const [mode, setMode] = useState('pickup'); 
   const [selectedDate, setSelectedDate] = useState('Tomorrow');
   const [selectedTime, setSelectedTime] = useState('10:00 AM - 12:00 PM');
   
@@ -33,7 +33,6 @@ export default function CheckoutScreen({ navigation, route }) {
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [addressModalVisible, setAddressModalVisible] = useState(false);
   
-  const visitFee = 199;   
   const pickupFee = 99;   
   const selfFee = 0;      
 
@@ -64,7 +63,6 @@ export default function CheckoutScreen({ navigation, route }) {
   }, [user]);
 
   const getFee = () => {
-    if (mode === 'home') return visitFee;
     if (mode === 'pickup') return pickupFee;
     return selfFee; 
   };
@@ -90,12 +88,12 @@ export default function CheckoutScreen({ navigation, route }) {
       return;
     }
 
-    if ((mode === 'home' || mode === 'pickup') && (!selectedDate || !selectedTime)) {
+    if (mode === 'pickup' && (!selectedDate || !selectedTime)) {
       Alert.alert("Missing Info", "Please select a date and time slot.");
       return;
     }
 
-    if ((mode === 'home' || mode === 'pickup') && !selectedAddress) {
+    if (mode === 'pickup' && !selectedAddress) {
       Alert.alert("Address Required", "Please add a service address to proceed.");
       return;
     }
@@ -148,10 +146,6 @@ export default function CheckoutScreen({ navigation, route }) {
 
         <Text style={styles.sectionTitle}>Select Service Mode</Text>
         <View style={styles.modeContainer}>
-          <TouchableOpacity style={[styles.modeBtn, mode === 'home' && styles.activeMode]} onPress={() => setMode('home')}>
-            <MaterialIcons name="home-repair-service" size={24} color={mode === 'home' ? '#FFF' : '#64748B'} />
-            <Text style={[styles.modeText, mode === 'home' && styles.activeText]}>Home Visit</Text>
-          </TouchableOpacity>
 
           <TouchableOpacity style={[styles.modeBtn, mode === 'pickup' && styles.activeMode]} onPress={() => setMode('pickup')}>
             <MaterialIcons name="local-shipping" size={24} color={mode === 'pickup' ? '#FFF' : '#64748B'} />
@@ -164,7 +158,7 @@ export default function CheckoutScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        {(mode === 'home' || mode === 'pickup') && (
+        {mode === 'pickup' && (
           <View style={styles.scheduleBox}>
             <Text style={styles.addressTitle}>Select Date</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 15, marginTop: 10}}>
@@ -194,7 +188,7 @@ export default function CheckoutScreen({ navigation, route }) {
           </View>
         )}
 
-        {(mode === 'home' || mode === 'pickup') && (
+        {mode === 'pickup' && (
             <View style={styles.addressBox}>
                 <View style={styles.addressHeader}>
                     <Text style={styles.addressTitle}>Service Address</Text>
@@ -223,7 +217,7 @@ export default function CheckoutScreen({ navigation, route }) {
                <Text style={styles.billValue}>₹{initialServicesTotal}</Text>
            </View>
            <View style={styles.billRow}>
-             <Text style={styles.billLabel}>{mode === 'home' ? 'Home Visit Fee' : mode === 'pickup' ? 'Pickup & Drop Fee' : 'Self Drop'}</Text>
+             <Text style={styles.billLabel}>{mode === 'pickup' ? 'Pickup & Drop Fee' : 'Self Drop'}</Text>
              <Text style={[styles.billValue, {fontWeight: '800'}]}>{getFee() === 0 ? 'FREE' : `₹${getFee()}`}</Text>
            </View>
            <View style={styles.divider} />

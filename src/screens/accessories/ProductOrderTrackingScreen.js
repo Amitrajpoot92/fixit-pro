@@ -22,6 +22,11 @@ export default function ProductOrderTrackingScreen({ navigation, route }) {
   const [cancelNote, setCancelNote] = useState('');
   const [cancelling, setCancelling] = useState(false);
 
+  // 🚀 Refund States
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundDetails, setRefundDetails] = useState('');
+  const [requestingRefund, setRequestingRefund] = useState(false);
+
   const cancelFaqs = [
     'Changed my mind', 
     'Ordered by mistake', 
@@ -100,6 +105,25 @@ export default function ProductOrderTrackingScreen({ navigation, route }) {
       Alert.alert("Error", "Could not cancel order. Try again.");
     }
     setCancelling(false);
+  };
+
+  const handleRequestRefund = async () => {
+    if (!refundDetails.trim()) {
+      Alert.alert("Error", "Please enter your refund details (e.g. UPI ID or Bank Ac).");
+      return;
+    }
+    setRequestingRefund(true);
+    try {
+      await updateDoc(doc(db, 'product_orders', orderDocId), {
+        refundStatus: 'Requested',
+        refundDetails: refundDetails
+      });
+      setShowRefundModal(false);
+      Alert.alert("Success", "Refund requested successfully.");
+    } catch (error) {
+      Alert.alert("Error", "Could not request refund.");
+    }
+    setRequestingRefund(false);
   };
 
   if (loading) {
@@ -223,6 +247,28 @@ export default function ProductOrderTrackingScreen({ navigation, route }) {
               <Text style={styles.cancelledReason}>
                 Reason: {order.cancelReason || 'Order was cancelled.'}
               </Text>
+
+              {/* Show Refund Status if applicable */}
+              {(order?.paymentMode === 'Online' || order?.paymentMode === 'Wallet' || order?.paymentStatus === 'Paid') && (
+                <View style={{marginTop: 15, padding: 12, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: '#FCA5A5'}}>
+                  <Text style={{fontWeight: '800', color: '#0F172A', marginBottom: 4}}>Refund Status:</Text>
+                  {order?.refundStatus === 'Requested' ? (
+                    <Text style={{color: '#D97706', fontWeight: 'bold'}}>⏳ Pending Admin Approval</Text>
+                  ) : order?.refundStatus === 'Processed' ? (
+                    <Text style={{color: '#15803D', fontWeight: 'bold'}}>✅ Refund Processed</Text>
+                  ) : (
+                    <>
+                      <Text style={{color: '#64748B', fontSize: 12, marginBottom: 10, fontWeight: '600'}}>Eligible for refund. Please provide your bank/UPI details to request.</Text>
+                      <TouchableOpacity 
+                        style={{backgroundColor: '#EF4444', padding: 10, borderRadius: 8, alignItems: 'center'}}
+                        onPress={() => setShowRefundModal(true)}
+                      >
+                        <Text style={{color: '#FFF', fontWeight: 'bold'}}>Request Refund</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              )}
             </View>
           </View>
         )}
@@ -307,6 +353,42 @@ export default function ProductOrderTrackingScreen({ navigation, route }) {
             </View>
           )}
         </View>
+
+        {/* 🚀 REFUND REQUEST MODAL */}
+        <Modal visible={showRefundModal} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Request Refund</Text>
+                <TouchableOpacity onPress={() => setShowRefundModal(false)}>
+                  <Ionicons name="close" size={24} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={{fontSize: 13, color: '#475569', marginBottom: 15}}>
+                Please enter your UPI ID or Bank Details where you want to receive your refund.
+              </Text>
+
+              <TextInput 
+                style={styles.modalInput}
+                placeholder="e.g. 9876543210@paytm or Bank A/C info..."
+                placeholderTextColor="#94A3B8"
+                value={refundDetails}
+                onChangeText={setRefundDetails}
+                multiline
+                numberOfLines={3}
+              />
+              
+              <TouchableOpacity 
+                style={[styles.confirmBtn, {backgroundColor: colors.primary}]}
+                onPress={handleRequestRefund}
+                disabled={requestingRefund}
+              >
+                {requestingRefund ? <ActivityIndicator color="#FFF" /> : <Text style={styles.confirmBtnText}>Submit Request</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
       </ScrollView>
 
@@ -446,5 +528,8 @@ const styles = StyleSheet.create({
   reasonTextActive: { color: colors.link },
   notesInput: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 15, fontSize: 14, textAlignVertical: 'top', height: 100, marginBottom: 20 },
   confirmCancelBtn: { backgroundColor: '#EF4444', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
-  confirmCancelText: { color: '#FFF', fontSize: 16, fontWeight: '800' }
+  confirmCancelText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+  modalInput: { backgroundColor: '#F1F5F9', borderRadius: 12, padding: 15, fontSize: 14, color: '#0F172A', minHeight: 80, textAlignVertical: 'top', marginBottom: 20 },
+  confirmBtn: { padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  confirmBtnText: { color: '#FFF', fontWeight: '800', fontSize: 16 }
 });

@@ -1,5 +1,5 @@
 // src/screens/profile/ReferAndEarnScreen.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -9,12 +9,17 @@ import {
   Platform, 
   StatusBar,
   ScrollView,
-  Dimensions
+  Dimensions,
+  Share,
+  Alert
 } from 'react-native';
 import { Ionicons, MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../context/AuthContext';
+import { db } from '../../services/firebaseConfig';
 
 const { width } = Dimensions.get('window');
 
@@ -27,10 +32,50 @@ const shadowStyle = Platform.select({
 
 export default function ReferAndEarnScreen({ navigation }) {
   const { user } = useAuth();
+  const [earnedCoupons, setEarnedCoupons] = useState([]);
 
   // 🚀 Referral Code Generator
   const firstName = user?.name ? user.name.split(' ')[0].toUpperCase() : 'USER';
-  const referralCode = `FIXIT${firstName}50`; 
+  const referralCode = `FIXIT${firstName}${user?.uid?.substring(0, 4).toUpperCase() || '50'}`; 
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    // Save referral code to user doc if not present (fire and forget)
+    updateDoc(doc(db, 'users', user.uid), {
+      referralCode: referralCode
+    }).catch(e => console.log("Referral code update error:", e));
+
+    const q = query(
+      collection(db, 'coupons'), 
+      where('ownerUid', '==', user.uid),
+      where('isActive', '==', true)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const coupons = [];
+      snapshot.forEach(doc => {
+        coupons.push({ id: doc.id, ...doc.data() });
+      });
+      setEarnedCoupons(coupons);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleCopyCode = async (codeToCopy) => {
+    await Clipboard.setStringAsync(codeToCopy);
+    Alert.alert("Copied!", `Code ${codeToCopy} copied to clipboard.`);
+  };
+
+  const handleShare = async () => {
+    try {
+      const appUrl = 'https://play.google.com/store/apps/details?id=com.codewebx.fixitpro'; 
+      await Share.share({
+        message: `Hey! Use my code ${referralCode} to get ₹50 OFF your first order on FixitPro!\n\nDownload the app now: ${appUrl}`,
+      });
+    } catch (error) {
+      console.error(error.message);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -75,7 +120,7 @@ export default function ReferAndEarnScreen({ navigation }) {
             <Text style={styles.codeLabel}>Your Referral Code</Text>
             <View style={styles.codeBox}>
               <Text style={styles.codeText}>{referralCode}</Text>
-              <TouchableOpacity style={styles.copyBtn} activeOpacity={0.7}>
+              <TouchableOpacity style={styles.copyBtn} onPress={() => handleCopyCode(referralCode)} activeOpacity={0.7}>
                 <MaterialIcons name="content-copy" size={22} color={colors.primary} />
               </TouchableOpacity>
             </View>
@@ -84,10 +129,11 @@ export default function ReferAndEarnScreen({ navigation }) {
           {/* 🚀 SHARE BUTTON */}
           <TouchableOpacity 
             style={styles.shareBtn}
+            onPress={handleShare}
             activeOpacity={0.8}
           >
             <FontAwesome5 name="whatsapp" size={20} color="#FFF" />
-            <Text style={styles.shareBtnText}>Share via WhatsApp</Text>
+            <Text style={styles.shareBtnText}>Share Code</Text>
           </TouchableOpacity>
 
           {/* 📋 HOW IT WORKS STEPS */}
@@ -112,22 +158,35 @@ export default function ReferAndEarnScreen({ navigation }) {
               <View style={[styles.stepNumber, { backgroundColor: '#FEF3C7' }]}>
                 <Text style={[styles.stepNumberText, { color: '#D97706' }]}>3</Text>
               </View>
-              <Text style={styles.stepText}>Boom! Both receive ₹50 inside the app wallet.</Text>
+              <Text style={styles.stepText}>You get a ₹30 discount coupon when they complete their order!</Text>
             </View>
+          </View>
+
+          {/* 🎟️ EARNED COUPONS SECTION */}
+          <View style={styles.couponsContainer}>
+            <Text style={styles.stepsTitle}>My Earned Coupons</Text>
+            {earnedCoupons.length === 0 ? (
+              <Text style={styles.noCouponText}>You haven't earned any reward coupons yet. Start referring!</Text>
+            ) : (
+              earnedCoupons.map((coupon, idx) => (
+                <View key={coupon.id} style={styles.rewardCard}>
+                  <View style={styles.rewardLeft}>
+                    <MaterialIcons name="local-offer" size={24} color="#16A34A" />
+                    <View style={{marginLeft: 10}}>
+                      <Text style={styles.rewardDiscount}>₹{coupon.discount} OFF</Text>
+                      <Text style={styles.rewardCode}>{coupon.code}</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity onPress={() => handleCopyCode(coupon.code)} style={styles.rewardCopyBtn}>
+                    <Text style={styles.rewardCopyText}>COPY</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
           </View>
 
         </ScrollView>
 
-        {/* 🔒 COMING SOON OVERLAY (Perfectly centered & covers full screen below header) */}
-        <View style={styles.comingSoonOverlay}>
-          <View style={[styles.comingSoonBadge, shadowStyle]}>
-            <MaterialIcons name="lock-clock" size={24} color="#FFF" />
-            <Text style={styles.comingSoonBadgeText}>COMING SOON</Text>
-          </View>
-          <Text style={styles.overlayNoticeText}>
-            We are setting up the rewards engine. This feature will be live in the next update! 🎉
-          </Text>
-        </View>
 
       </View>
     </SafeAreaView>
@@ -166,16 +225,13 @@ const styles = StyleSheet.create({
   stepNumberText: { fontSize: 14, fontWeight: '900' },
   stepText: { flex: 1, fontSize: 14, fontWeight: '700', color: '#475569' },
 
-  // 🔒 COMING SOON OVERLAY STYLES
-  comingSoonOverlay: { 
-    ...StyleSheet.absoluteFillObject, 
-    backgroundColor: 'rgba(248, 250, 252, 0.85)', // Blur effect background
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    paddingHorizontal: 30, 
-    zIndex: 10 // Ensured overlay stays on top of scrollview
-  },
-  comingSoonBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0F172A', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 30, gap: 8, marginBottom: 15 },
-  comingSoonBadgeText: { color: '#FFFFFF', fontSize: 15, fontWeight: '950', letterSpacing: 1.5 },
-  overlayNoticeText: { fontSize: 14, fontWeight: '800', color: '#334155', textAlign: 'center', lineHeight: 22, backgroundColor: '#FFFFFF', padding: 15, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', ...shadowStyle }
+  // Earned Coupons
+  couponsContainer: { width: '100%', marginBottom: 30 },
+  noCouponText: { fontSize: 14, color: '#94A3B8', fontWeight: '600', textAlign: 'center', marginTop: 10 },
+  rewardCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F0FDF4', padding: 15, borderRadius: 12, marginBottom: 10, borderWidth: 1, borderColor: '#DCFCE7' },
+  rewardLeft: { flexDirection: 'row', alignItems: 'center' },
+  rewardDiscount: { fontSize: 16, fontWeight: '900', color: '#166534' },
+  rewardCode: { fontSize: 12, fontWeight: '700', color: '#16A34A', marginTop: 2, textTransform: 'uppercase' },
+  rewardCopyBtn: { backgroundColor: '#DCFCE7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  rewardCopyText: { fontSize: 12, fontWeight: '800', color: '#15803D' }
 });

@@ -49,7 +49,7 @@ export default function PaymentsLedger() {
           };
         }
         
-        const amount = Number(b.totalAmount) || 0;
+        const amount = (Number(b.totalAmount) || 0) + (Number(b.discountAmount) || 0);
         const mode = b.paymentMode || 'Online';
         const isSettled = b.isSettled === true; 
 

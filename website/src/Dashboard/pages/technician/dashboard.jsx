@@ -94,7 +94,7 @@ export default function TechDashboard() {
               location: addressDisplay || 'Location not available',
               mode: data.serviceMode || 'self', 
               paymentMode: data.paymentMode || 'Offline',
-              totalAmount: data.totalAmount || 0,
+              totalAmount: (Number(data.totalAmount) || 0) + (Number(data.discountAmount) || 0),
               
               customerName: finalCustomerName,
               customerPhone: finalCustomerPhone,
@@ -195,7 +195,6 @@ export default function TechDashboard() {
   // Badges
   const getModeBadge = (mode) => {
     const m = mode?.toLowerCase();
-    if (m === 'home') return { text: '🏠 Home Visit', color: 'bg-blue-500/10 text-blue-400 border-blue-500/30' };
     if (m === 'pickup') return { text: '🛵 Pickup & Drop', color: 'bg-purple-500/10 text-purple-400 border-purple-500/30' };
     return { text: '🏪 Self Drop', color: 'bg-slate-700/30 text-slate-400 border-slate-600/30' };
   };

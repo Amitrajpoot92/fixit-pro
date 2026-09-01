@@ -27,16 +27,12 @@ const pillShadow = Platform.select({
 export default function OrdersScreen() {
   const navigation = useNavigation(); 
   
-  // 🚀 Toggles State
-  const [activeMainTab, setActiveMainTab] = useState('Services'); // 'Services' or 'Products'
-  const [activeSubTab, setActiveSubTab] = useState('Ongoing'); // 'Ongoing', 'Completed', 'Cancelled'
+  const [activeSubTab, setActiveSubTab] = useState('Ongoing');
   
-  const [serviceOrders, setServiceOrders] = useState([]);
   const [productOrders, setProductOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [orderLimit, setOrderLimit] = useState(20); // 🚀 Pagination limit
+  const [orderLimit, setOrderLimit] = useState(20); 
 
-  // 🚀 Fetch Both Service Bookings & Product Orders
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) {
@@ -44,34 +40,6 @@ export default function OrdersScreen() {
       return;
     }
 
-    // 1. Fetch Service Bookings
-    const qServices = query(collection(db, 'bookings'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(orderLimit));
-    const unsubServices = onSnapshot(qServices, (snapshot) => {
-      const fetchedServices = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const mode = data.serviceMode || 'self';
-        fetchedServices.push({
-          id: doc.id,
-          orderId: data.orderId || `#ORD-${doc.id.substring(0,4).toUpperCase()}`,
-          service: data.brandName ? `${data.brandName} ${data.modelName}` : 'Device Repair',
-          device: data.services ? data.services.map(s => s.serviceTitle).join(', ') : 'Service',
-          date: data.createdAt ? new Date(data.createdAt.toDate()).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'Just now',
-          status: data.status || 'Order Placed',
-          price: data.totalAmount ? `₹${data.totalAmount}` : 'Pending',
-          proName: data.technicianName || 'Unassigned',
-          paymentMode: data.paymentMode || 'Offline', // 🚀 Payment Mode Extracted
-          modeName: mode === 'pickup' ? 'Pickup & Drop' : mode === 'home' ? 'Home Visit' : 'Self Drop',
-          icon: mode === 'pickup' ? 'local-shipping' : mode === 'home' ? 'home-repair-service' : 'storefront',
-          bg: mode === 'pickup' ? '#F3E8FF' : mode === 'home' ? '#E0F2FE' : '#FEF3C7',
-          iconColor: mode === 'pickup' ? '#8B5CF6' : mode === 'home' ? '#0284C7' : '#D97706'
-        });
-      });
-      setServiceOrders(fetchedServices);
-      setLoading(false);
-    });
-
-    // 2. Fetch Product Orders
     const qProducts = query(collection(db, 'product_orders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(orderLimit));
     const unsubProducts = onSnapshot(qProducts, (snapshot) => {
       const fetchedProducts = [];
@@ -79,15 +47,16 @@ export default function OrdersScreen() {
         const pData = doc.data();
         fetchedProducts.push({ 
           id: doc.id, 
-          paymentMode: pData.paymentMode || 'Offline', // 🚀 Added Payment Mode to Products
+          paymentMode: pData.paymentMode || 'Offline', 
           ...pData 
         });
       });
       setProductOrders(fetchedProducts);
+      setLoading(false);
     });
 
-    return () => { unsubServices(); unsubProducts(); };
-  }, [orderLimit]); // Re-run when limit increases
+    return () => unsubProducts();
+  }, [orderLimit]);
 
   const handleLoadMore = () => {
     setOrderLimit(prev => prev + 10);
@@ -95,23 +64,13 @@ export default function OrdersScreen() {
 
   // 🚀 Filter Logic for Active Tab
   const getFilteredData = () => {
-    if (activeMainTab === 'Services') {
-      return serviceOrders.filter(order => {
-        const status = order.status.toLowerCase();
-        if (activeSubTab === 'Ongoing') return ['order placed', 'technician assigned', 'repair in-progress'].includes(status);
-        if (activeSubTab === 'Completed') return status === 'completed';
-        if (activeSubTab === 'Cancelled') return status === 'cancelled';
-        return false;
-      });
-    } else {
-      return productOrders.filter(order => {
-        const status = order.status?.toLowerCase() || '';
-        if (activeSubTab === 'Ongoing') return ['pending', 'processing', 'shipped'].includes(status);
-        if (activeSubTab === 'Completed') return status === 'delivered';
-        if (activeSubTab === 'Cancelled') return status === 'cancelled';
-        return false;
-      });
-    }
+    return productOrders.filter(order => {
+      const status = order.status?.toLowerCase() || '';
+      if (activeSubTab === 'Ongoing') return ['pending', 'processing', 'shipped'].includes(status);
+      if (activeSubTab === 'Completed') return status === 'delivered';
+      if (activeSubTab === 'Cancelled') return status === 'cancelled';
+      return false;
+    });
   };
 
   const filteredData = getFilteredData();
@@ -121,26 +80,7 @@ export default function OrdersScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
 
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Orders</Text>
-      </View>
-
-      {/* 🟢 MAIN TOGGLE: Services vs Products */}
-      <View style={styles.mainToggleWrapper}>
-        <TouchableOpacity 
-          style={[styles.mainToggleBtn, activeMainTab === 'Services' && styles.mainToggleActive]}
-          onPress={() => setActiveMainTab('Services')}
-        >
-          <MaterialIcons name="build" size={16} color={activeMainTab === 'Services' ? '#FFF' : '#64748B'} />
-          <Text style={[styles.mainToggleText, activeMainTab === 'Services' && styles.mainToggleTextActive]}>Service Bookings</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.mainToggleBtn, activeMainTab === 'Products' && styles.mainToggleActive]}
-          onPress={() => setActiveMainTab('Products')}
-        >
-          <MaterialIcons name="shopping-bag" size={16} color={activeMainTab === 'Products' ? '#FFF' : '#64748B'} />
-          <Text style={[styles.mainToggleText, activeMainTab === 'Products' && styles.mainToggleTextActive]}>Product Orders</Text>
-        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Product Orders</Text>
       </View>
 
       {/* 🟢 SUB TOGGLE: Ongoing, Completed, Cancelled */}
@@ -163,13 +103,13 @@ export default function OrdersScreen() {
         </View>
       ) : filteredData.length === 0 ? (
         <View style={styles.emptyState}>
-          <MaterialIcons name={activeMainTab === 'Services' ? "home-repair-service" : "local-mall"} size={50} color="#CBD5E1" />
-          <Text style={styles.emptyStateTitle}>No {activeSubTab.toLowerCase()} {activeMainTab.toLowerCase()}</Text>
+          <MaterialIcons name="local-mall" size={50} color="#CBD5E1" />
+          <Text style={styles.emptyStateTitle}>No {activeSubTab.toLowerCase()} orders</Text>
           <TouchableOpacity 
             style={styles.bookNowBtn} 
-            onPress={() => navigation.navigate(activeMainTab === 'Services' ? 'DeviceSelection' : 'ProductsTab')}
+            onPress={() => navigation.navigate('ProductsTab')}
           >
-            <Text style={styles.btnPrimaryText}>{activeMainTab === 'Services' ? 'Book a Service' : 'Shop Now'}</Text>
+            <Text style={styles.btnPrimaryText}>Shop Now</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -181,160 +121,78 @@ export default function OrdersScreen() {
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           renderItem={({ item: order }) => {
-              
-              // 🛠️ RENDER SERVICE CARD
-              if (activeMainTab === 'Services') {
-                return (
-                  <View key={order.id} style={[styles.orderCard, shadowStyle]}>
-                    <View style={styles.cardHeader}>
-                      <View>
-                        <Text style={styles.orderId}>{order.orderId}</Text>
-                        <View style={[styles.modeBadge, { backgroundColor: order.bg }]}>
-                          <Text style={[styles.modeBadgeText, { color: order.iconColor }]}>{order.modeName}</Text>
-                        </View>
-                      </View>
-                      <View style={styles.statusBadge}><Text style={styles.statusText}>{order.status}</Text></View>
+              const orderDate = order.createdAt ? new Date(order.createdAt.toDate()).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A';
+              return (
+                <View key={order.id} style={[styles.orderCard, shadowStyle]}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.orderId}>#ORD-{order.id.substring(0,6).toUpperCase()}</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: '#DBEAFE' }]}>
+                      <Text style={[styles.statusText, { color: '#2563EB' }]}>{order.status}</Text>
                     </View>
-                    
-                    <View style={styles.cardBody}>
-                      <View style={[styles.iconSquircle, { backgroundColor: order.bg }]}>
-                        <MaterialIcons name={order.icon} size={26} color={order.iconColor} />
-                      </View>
-                      <View style={styles.serviceInfo}>
-                        <Text style={styles.serviceName}>{order.service}</Text>
-                        <Text style={styles.deviceName} numberOfLines={1}>{order.device}</Text>
-                        <View style={styles.techRow}>
-                          <MaterialIcons name="person-pin" size={14} color="#64748B" />
-                          <Text style={styles.techText}>Pro: <Text style={{fontWeight: '700', color: '#0F172A'}}>{order.proName}</Text></Text>
+                  </View>
+
+                  {(() => {
+                    const firstProduct = order.productDetails && order.productDetails.length > 0 ? order.productDetails[0] : {};
+                    const extraItemsCount = order.productDetails ? order.productDetails.length - 1 : 0;
+                    return (
+                      <View style={styles.productRow}>
+                        <View style={styles.imgBox}>
+                          <Image source={{ uri: firstProduct.image }} style={styles.productImg} resizeMode="contain" />
                         </View>
-                        
-                        {/* 🚀 DYNAMIC PAYMENT BADGE FOR SERVICE */}
-                        <View style={[
-                          styles.paymentBadge, 
-                          order.paymentMode === 'Online' ? styles.badgePaid : styles.badgeCod,
-                          { marginTop: 6, alignSelf: 'flex-start' }
-                        ]}>
-                          <MaterialIcons 
-                            name={order.paymentMode === 'Online' ? "verified" : "payments"} 
-                            size={12} 
-                            color={order.paymentMode === 'Online' ? "#15803D" : "#B45309"} 
-                          />
-                          <Text style={[
-                            styles.paymentBadgeText, 
-                            order.paymentMode === 'Online' ? styles.textPaid : styles.textCod
-                          ]}>
-                            {order.paymentMode === 'Online' ? 'PRE-PAID' : 'COD'}
+                        <View style={styles.serviceInfo}>
+                          <Text style={styles.serviceName} numberOfLines={1}>
+                            {firstProduct.name || 'Product'}
+                            {extraItemsCount > 0 ? ` (+${extraItemsCount} more)` : ''}
                           </Text>
-                        </View>
-
-                      </View>
-                      <View style={{alignItems: 'flex-end'}}><Text style={styles.priceText}>{order.price}</Text></View>
-                    </View>
-
-                    <View style={styles.cardFooter}>
-                      <Text style={styles.dateText}>{order.date}</Text>
-                      <View style={styles.actionButtons}>
-                        <TouchableOpacity style={[styles.actionBtn, styles.btnSoft]} onPress={() => navigation.navigate('Support')}>
-                          <Text style={styles.btnSoftText}>Support</Text>
-                        </TouchableOpacity>
-                        {['order placed', 'technician assigned', 'repair in-progress'].includes(order.status.toLowerCase()) ? (
-                          <TouchableOpacity 
-                            style={[styles.actionBtn, styles.btnPrimary]} 
-                            onPress={() => navigation.navigate('OrderTracking', { orderId: order.orderId, type: 'Service' })} 
-                          >
-                            <Text style={styles.btnPrimaryText}>Track</Text>
-                          </TouchableOpacity>
-                        ) : (
-                          <TouchableOpacity 
-                            style={[styles.actionBtn, styles.btnSoft, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]} 
-                            onPress={() => navigation.navigate('OrderTracking', { orderId: order.orderId, type: 'Service' })} 
-                          >
-                            <Text style={[styles.btnSoftText, { color: '#64748B' }]}>View Details</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </View>
-                  </View>
-                );
-              }
-
-              // 🛍️ RENDER PRODUCT CARD
-              if (activeMainTab === 'Products') {
-                const orderDate = order.createdAt ? new Date(order.createdAt.toDate()).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : 'N/A';
-                return (
-                  <View key={order.id} style={[styles.orderCard, shadowStyle]}>
-                    <View style={styles.cardHeader}>
-                      <Text style={styles.orderId}>#ORD-{order.id.substring(0,6).toUpperCase()}</Text>
-                      <View style={[styles.statusBadge, { backgroundColor: '#DBEAFE' }]}>
-                        <Text style={[styles.statusText, { color: '#2563EB' }]}>{order.status}</Text>
-                      </View>
-                    </View>
-
-                    {(() => {
-                      const firstProduct = order.productDetails && order.productDetails.length > 0 ? order.productDetails[0] : {};
-                      const extraItemsCount = order.productDetails ? order.productDetails.length - 1 : 0;
-                      return (
-                        <View style={styles.productRow}>
-                          <View style={styles.imgBox}>
-                            <Image source={{ uri: firstProduct.image }} style={styles.productImg} resizeMode="contain" />
-                          </View>
-                          <View style={styles.serviceInfo}>
-                            <Text style={styles.serviceName} numberOfLines={1}>
-                              {firstProduct.name || 'Product'}
-                              {extraItemsCount > 0 ? ` (+${extraItemsCount} more)` : ''}
-                            </Text>
-                            <Text style={styles.deviceName}>Qty: {firstProduct.quantity || 1} • {firstProduct.category || 'Item'}</Text>
-                            
-                            {/* 🚀 DYNAMIC PAYMENT BADGE FOR PRODUCT */}
-                            <View style={[
-                              styles.paymentBadge, 
-                              order.paymentMode === 'Online' ? styles.badgePaid : styles.badgeCod,
-                              { marginTop: 4, alignSelf: 'flex-start' }
+                          <Text style={styles.deviceName}>Qty: {firstProduct.quantity || 1} • {firstProduct.category || 'Item'}</Text>
+                          
+                          <View style={[
+                            styles.paymentBadge, 
+                            order.paymentMode === 'Online' ? styles.badgePaid : styles.badgeCod,
+                            { marginTop: 4, alignSelf: 'flex-start' }
+                          ]}>
+                            <MaterialIcons 
+                              name={order.paymentMode === 'Online' ? "verified" : "payments"} 
+                              size={12} 
+                              color={order.paymentMode === 'Online' ? "#15803D" : "#B45309"} 
+                            />
+                            <Text style={[
+                              styles.paymentBadgeText, 
+                              order.paymentMode === 'Online' ? styles.textPaid : styles.textCod
                             ]}>
-                              <MaterialIcons 
-                                name={order.paymentMode === 'Online' ? "verified" : "payments"} 
-                                size={12} 
-                                color={order.paymentMode === 'Online' ? "#15803D" : "#B45309"} 
-                              />
-                              <Text style={[
-                                styles.paymentBadgeText, 
-                                order.paymentMode === 'Online' ? styles.textPaid : styles.textCod
-                              ]}>
-                                {order.paymentMode === 'Online' ? 'PRE-PAID' : 'COD'}
-                              </Text>
-                            </View>
-                          </View>
-                          <View style={{alignItems: 'flex-end'}}>
-                            <Text style={[styles.priceText, { color: colors.link }]}>₹{order.totalAmount}</Text>
+                              {order.paymentMode === 'Online' ? 'PRE-PAID' : 'COD'}
+                            </Text>
                           </View>
                         </View>
-                      );
-                    })()}
-
-                    <View style={styles.cardFooter}>
-                      <Text style={styles.dateText}>Placed on: {orderDate}</Text>
-                      <View style={styles.actionButtons}>
-                        {['pending', 'processing', 'shipped'].includes(order.status?.toLowerCase()) ? (
-                          <TouchableOpacity 
-                            style={[styles.actionBtn, styles.btnPrimary]} 
-                            onPress={() => navigation.navigate('ProductOrderTracking', { orderId: order.orderId || order.id })} 
-                          >
-                            <Text style={styles.btnPrimaryText}>Track</Text>
-                          </TouchableOpacity>
-                        ) : (
-                          <TouchableOpacity 
-                            style={[styles.actionBtn, styles.btnSoft, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]} 
-                            onPress={() => navigation.navigate('ProductOrderTracking', { orderId: order.orderId || order.id })} 
-                          >
-                            <Text style={[styles.btnSoftText, { color: '#64748B' }]}>View Details</Text>
-                          </TouchableOpacity>
-                        )}
+                        <View style={{alignItems: 'flex-end'}}>
+                          <Text style={[styles.priceText, { color: colors.link }]}>₹{order.totalAmount}</Text>
+                        </View>
                       </View>
+                    );
+                  })()}
+
+                  <View style={styles.cardFooter}>
+                    <Text style={styles.dateText}>Placed on: {orderDate}</Text>
+                    <View style={styles.actionButtons}>
+                      {['pending', 'processing', 'shipped'].includes(order.status?.toLowerCase()) ? (
+                        <TouchableOpacity 
+                          style={[styles.actionBtn, styles.btnPrimary]} 
+                          onPress={() => navigation.navigate('ProductOrderTracking', { orderId: order.orderId || order.id })} 
+                        >
+                          <Text style={styles.btnPrimaryText}>Track</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity 
+                          style={[styles.actionBtn, styles.btnSoft, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]} 
+                          onPress={() => navigation.navigate('ProductOrderTracking', { orderId: order.orderId || order.id })} 
+                        >
+                          <Text style={[styles.btnSoftText, { color: '#64748B' }]}>View Details</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
-                );
-              }
-              return null;
+                </View>
+              );
           }} 
         />
       )}
@@ -348,12 +206,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 26, fontWeight: '900', color: '#0F172A' },
   
   // Toggle Styles
-  mainToggleWrapper: { flexDirection: 'row', backgroundColor: '#E2E8F0', marginHorizontal: 20, borderRadius: 14, padding: 4, marginBottom: 15 },
-  mainToggleBtn: { flex: 1, flexDirection: 'row', gap: 6, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  mainToggleActive: { backgroundColor: colors.primary, ...shadowStyle },
-  mainToggleText: { fontSize: 13, fontWeight: '700', color: '#64748B' },
-  mainToggleTextActive: { color: '#FFF', fontWeight: '800' },
-
   subTabWrapper: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 20, gap: 10 },
   subPillButton: { flex: 1, paddingVertical: 8, borderRadius: 20, alignItems: 'center', backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
   subPillActive: { backgroundColor: '#FFF', borderColor: '#CBD5E1' },

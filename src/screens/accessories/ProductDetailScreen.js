@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, 
-  Image, Platform, StatusBar, Alert, FlatList, Dimensions, Animated 
+  Image, Platform, StatusBar, Alert, FlatList, Dimensions, Animated, Share
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { collection, addDoc, getDocs, query, where, updateDoc, doc, increment, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, updateDoc, doc, increment, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '../../services/firebaseConfig';
 import { useAuth } from '../../context/AuthContext';
 import { colors } from '../../theme/colors';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
@@ -23,6 +24,26 @@ export default function ProductDetailScreen({ navigation, route }) {
 
   // 🚀 Cart Badge Count State
   const [cartCount, setCartCount] = useState(0);
+
+  // 🚀 Recommendations State
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
+
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      try {
+        const collectionName = product.condition === 'Refurbished' ? 'refurbished_products' : 'new_products';
+        const q = query(collection(db, collectionName), limit(6));
+        const snap = await getDocs(q);
+        const items = snap.docs
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+          .filter(p => p.id !== product.id);
+        setRecommendedProducts(items);
+      } catch (e) {
+        console.log('Error fetching recommendations', e);
+      }
+    };
+    fetchRecommendations();
+  }, [product.id]);
 
   // 🚀 Animation States
   const [isAnimating, setIsAnimating] = useState(false);
@@ -42,7 +63,8 @@ export default function ProductDetailScreen({ navigation, route }) {
 
   // Handle Scroll for Image Carousel
   const onMomentumScrollEnd = (event) => {
-    const newIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+    const cardWidth = width - 30;
+    const newIndex = Math.round(event.nativeEvent.contentOffset.x / cardWidth);
     setCurrentImageIndex(newIndex);
   };
 
@@ -106,18 +128,30 @@ export default function ProductDetailScreen({ navigation, route }) {
     } catch (e) { console.error(e); }
   };
 
+  // 🚀 Share Product Logic
+  const onShare = async () => {
+    try {
+      await Share.share({
+        message: `Check out this amazing product: ${product.name} for just ₹${product.price} on FixitPro!\n\nDownload the app now: https://play.google.com/store/apps/details?id=com.codewebx.fixitpro`,
+      });
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
-      {/* 🟢 HEADER WITH LIVE CART BADGE */}
+      {/* 🟢 HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
-          <Ionicons name="arrow-back" size={22} color="#0F172A" />
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtnWrapper}>
+          <Ionicons name="arrow-back" size={22} color="#1E293B" />
+          <Text style={styles.backBtnText}>BACK TO PRODUCTS</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('CartScreen')}>
-          <MaterialIcons name="shopping-cart" size={22} color="#0F172A" />
+        <TouchableOpacity onPress={() => navigation.navigate('CartScreen')} style={styles.cartIconWrapper}>
+          <Ionicons name="cart-outline" size={24} color="#1E293B" />
           {cartCount > 0 && (
             <View style={styles.cartBadge}>
               <Text style={styles.cartBadgeText}>{cartCount}</Text>
@@ -126,10 +160,20 @@ export default function ProductDetailScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         
-        {/* 🚀 IMAGE CAROUSEL SECTION */}
-        <View style={styles.imageBox}>
+        {/* 🚀 MAIN IMAGE CARD */}
+        <View style={styles.mainImageCard}>
+          {/* Top Overlays inside Card */}
+          <View style={styles.cardOverlays}>
+            <View style={styles.categoryPillTop}>
+              <Text style={styles.categoryPillTopText}>{product.category}</Text>
+            </View>
+            <TouchableOpacity style={styles.shareBtn} onPress={onShare}>
+              <Ionicons name="share-social-outline" size={20} color="#1E293B" />
+            </TouchableOpacity>
+          </View>
+          
           <FlatList
             ref={flatListRef}
             data={productImages}
@@ -139,59 +183,112 @@ export default function ProductDetailScreen({ navigation, route }) {
             onMomentumScrollEnd={onMomentumScrollEnd}
             keyExtractor={(_, index) => index.toString()}
             renderItem={({ item }) => (
-              <View style={{ width: width, justifyContent: 'center', alignItems: 'center' }}>
+              <View style={{ width: width - 30, height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                 <Image source={{ uri: item }} style={styles.mainImage} resizeMode="contain" />
               </View>
             )}
           />
-
-          {/* Carousel Navigation Arrows */}
-          {productImages.length > 1 && (
-            <>
-              {currentImageIndex > 0 && (
-                <TouchableOpacity style={[styles.arrowBtn, { left: 15 }]} onPress={scrollLeft}>
-                  <Ionicons name="chevron-back" size={24} color="#0F172A" />
-                </TouchableOpacity>
-              )}
-              {currentImageIndex < productImages.length - 1 && (
-                <TouchableOpacity style={[styles.arrowBtn, { right: 15 }]} onPress={scrollRight}>
-                  <Ionicons name="chevron-forward" size={24} color="#0F172A" />
-                </TouchableOpacity>
-              )}
-              
-              {/* Dots */}
-              <View style={styles.dotsContainer}>
-                {productImages.map((_, idx) => (
-                  <View key={idx} style={[styles.dot, currentImageIndex === idx && styles.activeDot]} />
-                ))}
-              </View>
-            </>
-          )}
         </View>
+
+        {/* 🚀 THUMBNAILS LIST */}
+        {productImages.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbnailsContainer}>
+            {productImages.map((img, idx) => (
+              <TouchableOpacity 
+                key={idx} 
+                onPress={() => setCurrentImageIndex(idx)}
+                style={[styles.thumbnailWrapper, currentImageIndex === idx && styles.thumbnailActive]}
+              >
+                <Image source={{ uri: img }} style={styles.thumbnailImg} resizeMode="contain" />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
 
         {/* 🟢 DETAILS SECTION */}
         <View style={styles.detailsBox}>
-          <Text style={styles.categoryText}>{product.category}</Text>
+          
+          {/* Accent Pills Row */}
+          <View style={styles.pillsRow}>
+            <View style={styles.accentPill}>
+              <Text style={styles.accentPillText}>{product.category}</Text>
+            </View>
+            <View style={styles.accentPill}>
+              <Ionicons name="star" size={14} color="#F59E0B" style={{marginRight: 4}} />
+              <Text style={styles.accentPillTextDark}>4.8 EXPERT RATING</Text>
+            </View>
+          </View>
+          
           <Text style={styles.productTitle}>{product.name}</Text>
-          <Text style={styles.priceText}>₹{product.price}</Text>
-          {product.originalPrice && <Text style={styles.originalPrice}>M.R.P: <Text style={{textDecorationLine: 'line-through'}}>₹{product.originalPrice}</Text></Text>}
           
-          <View style={styles.divider} />
+          <View style={styles.pillsRow}>
+            <View style={styles.dealPill}>
+              <Text style={styles.dealPillText}>BIG DEAL</Text>
+            </View>
+          </View>
           
-          <Text style={{fontSize: 16, fontWeight: '800', marginBottom: 10}}>Description</Text>
-          <Text style={{fontSize: 14, color: '#64748B', lineHeight: 22}}>{product.description}</Text>
+          {/* Product Highlights Card */}
+          <View style={styles.highlightsCard}>
+            <View style={styles.highlightsHeader}>
+              <Text style={styles.highlightsTitle}>Product Highlights</Text>
+              {product.originalPrice && product.originalPrice > product.price && (
+                <View style={styles.discountPillSmall}>
+                  <Text style={styles.discountPillTextSmall}>
+                    {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
+                  </Text>
+                </View>
+              )}
+            </View>
+            
+            <View style={styles.highlightRow}>
+              <View style={styles.highlightIconBox}>
+                <Ionicons name="document-text-outline" size={20} color="#475569" />
+              </View>
+              <View style={styles.highlightTextBox}>
+                <Text style={styles.highlightText}>{product.description}</Text>
+              </View>
+            </View>
+            
+            {/* You can add more highlight rows here if data permits */}
+          </View>
+
+          {/* 🚀 SIMILAR PRODUCTS SECTION */}
+          {recommendedProducts.length > 0 && (
+            <View style={styles.recSection}>
+              <Text style={styles.recSectionTitle}>Similar Products</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recList}>
+                {recommendedProducts.map((item) => (
+                  <TouchableOpacity 
+                    key={item.id} 
+                    style={styles.recCard}
+                    activeOpacity={0.9}
+                    onPress={() => navigation.push('ProductDetail', { product: item })}
+                  >
+                    <View style={styles.recImgBox}>
+                      <Image source={{ uri: item.image || (item.images && item.images[0]) }} style={styles.recImg} resizeMode="contain" />
+                    </View>
+                    <Text style={styles.recName} numberOfLines={2}>{item.name}</Text>
+                    <Text style={styles.recPrice}>₹{item.price}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
         </View>
       </ScrollView>
 
       {/* 🟢 BOTTOM ACTION BAR */}
-      <View style={styles.bottomBar}>
-        <View>
-          <Text style={{fontSize: 12, color: '#64748B', fontWeight: '600'}}>Total Price</Text>
-          <Text style={{fontSize: 22, fontWeight: '900', color: '#0F172A'}}>₹{product.price}</Text>
+      <View style={styles.bottomActionBar}>
+        <View style={styles.bottomPriceBox}>
+          <Text style={styles.bottomPrice}>₹{product.price}</Text>
+          {product.originalPrice && product.originalPrice > product.price && (
+            <Text style={styles.bottomOriginalPrice}>₹{product.originalPrice}</Text>
+          )}
         </View>
-        <TouchableOpacity style={styles.addToCartBtn} onPress={addToCart} activeOpacity={0.8}>
-          <MaterialIcons name="add-shopping-cart" size={20} color="#FFF" />
-          <Text style={{color: '#FFF', fontWeight: '800', fontSize: 16}}>Add to Cart</Text>
+        
+        <TouchableOpacity style={styles.buyBtn} onPress={addToCart} activeOpacity={0.8}>
+          <Text style={styles.buyBtnText}>Add to Cart</Text>
         </TouchableOpacity>
       </View>
 
@@ -219,31 +316,71 @@ export default function ProductDetailScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, position: 'absolute', top: Platform.OS === 'android' ? StatusBar.currentHeight : 0, left: 0, right: 0, zIndex: 10 },
-  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.1, shadowRadius: 4 },
+  container: { flex: 1, backgroundColor: '#FFFFFF', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
   
-  cartBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#EF4444', width: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFF' },
-  cartBadgeText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
+  // Header
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 10 },
+  backBtnWrapper: { flexDirection: 'row', alignItems: 'center' },
+  backBtnText: { fontSize: 13, fontWeight: '700', color: '#64748B', marginLeft: 8, letterSpacing: 0.5 },
+  cartIconWrapper: { position: 'relative', padding: 5 },
+  cartBadge: { position: 'absolute', top: -2, right: -2, backgroundColor: '#EF4444', width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#FFF' },
+  cartBadgeText: { color: '#FFF', fontSize: 9, fontWeight: '900' },
 
-  imageBox: { height: width, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  mainImage: { width: '100%', height: '100%' },
+  // Main Image Card
+  mainImageCard: { backgroundColor: '#F8F9FA', margin: 15, borderRadius: 30, height: width * 0.9, position: 'relative', justifyContent: 'center', alignItems: 'center' },
+  cardOverlays: { position: 'absolute', top: 20, left: 20, right: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', zIndex: 10 },
+  categoryPillTop: { backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, shadowColor: '#000', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  categoryPillTopText: { fontSize: 11, fontWeight: '800', color: '#F97316', textTransform: 'uppercase', letterSpacing: 0.5 },
+  shareBtn: { backgroundColor: '#FFFFFF', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  mainImage: { width: '80%', height: '80%' },
+
+  // Thumbnails
+  thumbnailsContainer: { paddingHorizontal: 15, paddingBottom: 20, gap: 12 },
+  thumbnailWrapper: { width: 70, height: 70, borderRadius: 16, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#F1F5F9', overflow: 'hidden' },
+  thumbnailActive: { borderColor: '#F97316' },
+  thumbnailImg: { width: '80%', height: '80%' },
+
+  // Details
+  detailsBox: { paddingHorizontal: 20, paddingTop: 10 },
+  pillsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 },
+  accentPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  accentPillText: { fontSize: 11, fontWeight: '800', color: '#F97316', textTransform: 'uppercase', letterSpacing: 0.5 },
+  accentPillTextDark: { fontSize: 11, fontWeight: '800', color: '#475569', letterSpacing: 0.5 },
+  dealPill: { backgroundColor: '#FFF7ED', borderWidth: 1, borderColor: '#FED7AA', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, marginBottom: 10 },
+  dealPillText: { fontSize: 11, fontWeight: '800', color: '#F97316', letterSpacing: 0.5 },
+
+  productTitle: { fontSize: 28, fontWeight: '700', color: '#1E293B', marginBottom: 15, lineHeight: 34 },
   
-  arrowBtn: { position: 'absolute', top: '45%', width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.8)', justifyContent: 'center', alignItems: 'center', zIndex: 5 },
-  dotsContainer: { position: 'absolute', bottom: 30, flexDirection: 'row', justifyContent: 'center', width: '100%' },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#CBD5E1', marginHorizontal: 4 },
-  activeDot: { backgroundColor: colors.link, width: 20 },
-
-  detailsBox: { padding: 25, backgroundColor: '#FFF', borderTopLeftRadius: 35, borderTopRightRadius: 35, marginTop: -25 },
-  categoryText: { fontSize: 12, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 6 },
-  productTitle: { fontSize: 24, fontWeight: '900', color: '#0F172A', marginBottom: 12, lineHeight: 30 },
-  priceText: { fontSize: 28, fontWeight: '900', color: colors.link },
-  originalPrice: { fontSize: 14, color: '#94A3B8', fontWeight: '600', marginTop: 4 },
-  divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 20 },
+  // Highlights Card
+  highlightsCard: { backgroundColor: '#F8F9FA', borderRadius: 24, padding: 20, marginTop: 15 },
+  highlightsHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, gap: 10 },
+  highlightsTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B' },
+  discountPillSmall: { backgroundColor: '#FFF7ED', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  discountPillTextSmall: { color: '#F97316', fontSize: 10, fontWeight: '800' },
   
-  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF', flexDirection: 'row', padding: 20, borderTopWidth: 1, borderColor: '#E2E8F0', justifyContent: 'space-between', alignItems: 'center', paddingBottom: Platform.OS === 'ios' ? 35 : 20 },
-  addToCartBtn: { backgroundColor: colors.link, flexDirection: 'row', paddingVertical: 16, paddingHorizontal: 30, borderRadius: 16, gap: 8, elevation: 4, shadowColor: colors.link, shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.3, shadowRadius: 8 },
+  highlightRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 15 },
+  highlightIconBox: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+  highlightTextBox: { flex: 1, justifyContent: 'center', paddingTop: 2 },
+  highlightText: { fontSize: 14, color: '#475569', lineHeight: 22, fontWeight: '500' },
 
-  // Animation Styles
+  // Bottom Action Bar
+  bottomActionBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', flexDirection: 'row', paddingHorizontal: 20, paddingTop: 15, paddingBottom: Platform.OS === 'ios' ? 35 : 20, borderTopWidth: 1, borderColor: '#F1F5F9', alignItems: 'center', justifyContent: 'space-between' },
+  bottomPriceBox: { flex: 1 },
+  bottomPrice: { fontSize: 24, fontWeight: '800', color: '#1E293B' },
+  bottomOriginalPrice: { fontSize: 14, color: '#94A3B8', textDecorationLine: 'line-through', marginTop: 2 },
+  buyBtn: { backgroundColor: '#F97316', paddingHorizontal: 35, paddingVertical: 15, borderRadius: 14 },
+  buyBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
+
+  // Recommendations
+  recSection: { marginTop: 30, paddingTop: 20, borderTopWidth: 1, borderColor: '#F1F5F9' },
+  recSectionTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B', marginBottom: 15 },
+  recList: { gap: 15, paddingBottom: 10 },
+  recCard: { width: 140, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 10, borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#000', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
+  recImgBox: { width: '100%', height: 100, backgroundColor: '#F8F9FA', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  recImg: { width: '80%', height: '80%' },
+  recName: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 4, lineHeight: 18 },
+  recPrice: { fontSize: 15, fontWeight: '800', color: '#F97316' },
+
+  // Animation
   flyingElement: { position: 'absolute', width: 60, height: 60, backgroundColor: '#FFF', borderRadius: 12, padding: 5, zIndex: 1000, elevation: 1000, borderWidth: 1, borderColor: '#E2E8F0' }
 });

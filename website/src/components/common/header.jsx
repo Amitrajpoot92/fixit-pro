@@ -50,7 +50,7 @@ export default function Header() {
               <Lock className="w-4 h-4" />
               Staff Login
             </a>
-            <button className="bg-slate-900 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-blue-600 transition-colors duration-300 shadow-md flex items-center gap-2 hover:-translate-y-0.5 hover:shadow-lg">
+            <button onClick={() => window.open('https://play.google.com/store/apps/details?id=com.codewebx.fixitpro', '_blank')} className="bg-slate-900 text-white px-6 py-2.5 rounded-full font-bold text-sm hover:bg-blue-600 transition-colors duration-300 shadow-md flex items-center gap-2 hover:-translate-y-0.5 hover:shadow-lg">
               <Download className="w-4 h-4" />
               Get App
             </button>
@@ -92,9 +92,9 @@ export default function Header() {
               <Lock className="w-4 h-4" />
               Staff Login
             </a>
-            <button className="bg-blue-600 text-white px-4 py-3.5 rounded-2xl font-bold text-base shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
+            <button onClick={() => window.open('https://play.google.com/store/apps/details?id=com.codewebx.fixitpro', '_blank')} className="bg-blue-600 text-white px-4 py-3.5 rounded-2xl font-bold text-base shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2">
               <Download className="w-5 h-5" />
-              Download App
+              Get the App
             </button>
           </div>
         </div>

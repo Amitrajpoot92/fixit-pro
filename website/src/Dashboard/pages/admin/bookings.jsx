@@ -122,7 +122,6 @@ export default function Bookings() {
 
   const getModeBadge = (mode) => {
     const m = mode?.toLowerCase();
-    if (m === 'home') return { text: 'Home Visit', color: 'bg-blue-500/10 text-blue-400 border-blue-500/30' };
     if (m === 'pickup') return { text: 'Pickup & Drop', color: 'bg-purple-500/10 text-purple-400 border-purple-500/30' };
     return { text: 'Self Drop', color: 'bg-slate-700/30 text-slate-400 border-slate-600/30' };
   };
@@ -214,6 +213,11 @@ export default function Bookings() {
                         {/* Column 3: Payment & Amount */}
                         <td className="p-4 align-top">
                           <div className="font-black text-white text-lg mb-1">₹{order.totalAmount}</div>
+                          {order.appliedCoupon && (
+                            <div className="text-[10px] font-bold text-emerald-400 mb-1 flex items-center gap-1">
+                              🏷️ {order.appliedCoupon} (-₹{order.discountAmount})
+                            </div>
+                          )}
                           <span className={`flex items-center gap-1 px-2 py-0.5 w-fit rounded text-[10px] font-bold border whitespace-nowrap ${isPrepaid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-orange-500/10 text-orange-400 border-orange-500/30'}`}>
                             {isPrepaid ? <CreditCard size={12} /> : <Banknote size={12} />} 
                             {isPrepaid ? 'PRE-PAID' : 'COD'}

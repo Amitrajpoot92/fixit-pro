@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Package, ShoppingCart, 
   Wrench, Settings, LogOut, X, ShoppingBag, Boxes, MonitorPlay,
-  ShieldCheck, BadgeIndianRupee, PackageOpen 
+  ShieldCheck, BadgeIndianRupee, PackageOpen, BadgePercent, RefreshCcw
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../../firebase'; 
@@ -27,7 +27,8 @@ export default function AdminSidebar({ isSidebarOpen, setIsSidebarOpen }) {
     { name: 'Master Catalog', icon: Package, path: '/admin/catalog' },
     { name: 'Live Bookings', icon: ShoppingCart, path: '/admin/bookings' },
     { name: 'Technicians', icon: Wrench, path: '/admin/technicians' },
-    // 🚀 NAYA LINK ADD KIYA JUST PRODUCTS KE UPAR
+    { name: 'Refund Requests', icon: RefreshCcw, path: '/admin/refunds' },
+    { name: 'Coupons & Offers', icon: BadgePercent, path: '/admin/coupons' },
     { name: 'Product Orders', icon: PackageOpen, path: '/admin/product-orders' },
     { name: 'Products', icon: ShoppingBag, path: '/admin/products' },
     { name: 'Inventory', icon: Boxes, path: '/admin/inventory' },

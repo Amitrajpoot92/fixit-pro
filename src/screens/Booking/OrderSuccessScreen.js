@@ -1,6 +1,6 @@
 // src/screens/Booking/OrderSuccessScreen.js
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, SafeAreaView } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, SafeAreaView, BackHandler } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 
@@ -15,6 +15,17 @@ export default function OrderSuccessScreen({ navigation, route }) {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const dateString = tomorrow.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+  // 🚀 Intercept hardware back button to navigate to Home
+  useEffect(() => {
+    const onBackPress = () => {
+      navigation.navigate('MainTabs');
+      return true; // Prevent default back action
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backHandler.remove();
+  }, [navigation]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -43,8 +54,8 @@ export default function OrderSuccessScreen({ navigation, route }) {
             : `Your repair request `}
           <Text style={{fontWeight: '800', color: '#0F172A'}}>#{orderId}</Text> 
           {isOnline
-            ? ` has been placed. Our technician will contact you shortly.`
-            : ` has been placed. Please pay the technician after the service is completed.`}
+            ? ` has been placed. Our technician will contact you shortly.\n\nYou can track your order from the Bookings section of the app.`
+            : ` has been placed. Please pay the technician after the service is completed.\n\nYou can track your order from the Bookings section of the app.`}
         </Text>
         
         <View style={styles.infoBox}>

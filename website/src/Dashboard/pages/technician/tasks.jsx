@@ -16,7 +16,7 @@ export default function Tasks() {
   const [loadingTasks, setLoadingTasks] = useState(true);
   
   // 🚀 MAIN TAB: Service Mode ('home', 'pickup', 'self')
-  const [activeMode, setActiveMode] = useState('home'); 
+  const [activeMode, setActiveMode] = useState('pickup'); 
   
   // 🚀 SUB TAB: Order Status
   const [activeTab, setActiveTab] = useState('New'); 
@@ -89,7 +89,7 @@ export default function Tasks() {
               
               mode: data.serviceMode || 'self', 
               paymentMode: data.paymentMode || 'Offline',
-              totalAmount: data.totalAmount || 0,
+              totalAmount: (Number(data.totalAmount) || 0) + (Number(data.discountAmount) || 0),
               
               // 🚀 ASSIGNING FRESH DATA
               customerName: finalCustomerName,
@@ -207,19 +207,11 @@ export default function Tasks() {
           <h2 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-2.5">
             <ClipboardList className="w-7 h-7 sm:w-8 h-8 text-emerald-500" /> Job Center
           </h2>
-          <p className="text-slate-400 text-xs sm:text-sm mt-1">Manage all your assigned repairs and home visits.</p>
+          <p className="text-slate-400 text-xs sm:text-sm mt-1">Manage all your assigned repairs.</p>
         </div>
 
         {/* 🚀 LEVEL 1 TABS: SERVICE MODES */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
-          <button 
-            onClick={() => setActiveMode('home')}
-            className={`flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all ${activeMode === 'home' ? 'bg-blue-600/20 border-blue-500 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.15)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'}`}
-          >
-            <Home className="w-6 h-6 sm:w-8 sm:h-8 mb-2" />
-            <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider">Home Visit</span>
-          </button>
-          
+        <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-6">
           <button 
             onClick={() => setActiveMode('pickup')}
             className={`flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl sm:rounded-2xl border transition-all ${activeMode === 'pickup' ? 'bg-purple-600/20 border-purple-500 text-purple-400 shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'}`}
@@ -285,8 +277,9 @@ export default function Tasks() {
                         {task.orderId}
                       </span>
                       {/* 🚀 PAYMENT BADGE */}
-                      <span className={`px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold border flex items-center gap-1 ${isPrepaid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-orange-500/10 text-orange-400 border-orange-500/30'}`}>
-                        <Wallet size={12} /> {isPrepaid ? 'PRE-PAID' : 'COD'}
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${isPrepaid ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-orange-500/10 text-orange-400 border-orange-500/30'}`}>
+                        {isPrepaid ? <CreditCard size={12} /> : <Banknote size={12} />} 
+                        {isPrepaid ? 'PRE-PAID' : 'COD'}
                       </span>
                     </div>
                     

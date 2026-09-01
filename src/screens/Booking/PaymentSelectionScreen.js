@@ -1,11 +1,11 @@
 // src/screens/Booking/PaymentSelectionScreen.js
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
-  ScrollView, StatusBar, Platform, ActivityIndicator, Alert 
+  ScrollView, StatusBar, Platform, ActivityIndicator, Alert, TextInput
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { collection, addDoc, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'; 
+import { collection, addDoc, doc, getDoc, getDocs, query, where, updateDoc, serverTimestamp, increment, onSnapshot } from 'firebase/firestore'; 
 import RazorpayCheckout from 'react-native-razorpay';
 import { encode } from 'base-64'; 
 
@@ -19,12 +19,21 @@ const RAZORPAY_KEY_SECRET = process.env.EXPO_PUBLIC_RAZORPAY_KEY_SECRET;
 export default function PaymentSelectionScreen({ navigation, route }) {
   const [method, setMethod] = useState('upi');
   const [loading, setLoading] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0); 
+
+  // 🎟️ Coupon States
+  const [couponCode, setCouponCode] = useState('');
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState(null); // { code, discount, type, referrerUid, docId }
   
   // Draft Order States (Security against app crashes)
   const draftDocId = useRef(null);
   const draftOrderId = useRef(null);
 
-  const amount = route.params?.totalAmount || 0; 
+  const initialAmount = route.params?.totalAmount || 0; 
+  const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
+  const amount = Math.max(initialAmount - discountAmount, 0);
+
   const brandName = route.params?.brandName || 'Unknown Brand';
   const modelName = route.params?.modelName || 'Unknown Model';
   const selectedServices = route.params?.selectedServices || [];
@@ -37,8 +46,132 @@ export default function PaymentSelectionScreen({ navigation, route }) {
 
   const paymentOptions = [
     { id: 'upi', name: 'UPI / Online Payment', icon: 'account-balance', desc: 'Secure & Auto-verified via Razorpay' },
+    { id: 'wallet', name: 'Pay via Wallet', icon: 'account-balance-wallet', desc: 'Use your digital wallet balance' },
     { id: 'cod', name: 'Cash on Delivery (COD)', icon: 'payments', desc: 'Pay technician after repair' },
   ];
+
+  useEffect(() => {
+    const currentUser = auth.currentUser;
+    if (currentUser?.uid) {
+      const userRef = doc(db, 'users', currentUser.uid);
+      const unsubscribeUser = onSnapshot(userRef, (docSnap) => {
+        if (docSnap.exists()) {
+          setWalletBalance(docSnap.data().walletBalance || 0);
+        }
+      });
+      return () => unsubscribeUser();
+    }
+  }, []);
+
+  // 🎟️ COUPON LOGIC
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      Alert.alert("Error", "Please enter a coupon code.");
+      return;
+    }
+    setApplyingCoupon(true);
+    const currentUser = auth.currentUser;
+    
+    try {
+      const formattedCode = couponCode.trim().toUpperCase();
+
+      // 1. Check if it's a Reward Coupon
+      const qRewards = query(
+        collection(db, 'coupons'), 
+        where('code', '==', formattedCode), 
+        where('isActive', '==', true), 
+        where('ownerUid', '==', currentUser.uid)
+      );
+      const rewardSnap = await getDocs(qRewards);
+      
+      if (!rewardSnap.empty) {
+        const rewardData = rewardSnap.docs[0].data();
+        setAppliedCoupon({ 
+          code: formattedCode, 
+          discount: rewardData.discount || 30, 
+          type: 'reward', 
+          docId: rewardSnap.docs[0].id 
+        });
+        setApplyingCoupon(false);
+        Alert.alert("Success", `Reward coupon applied! You got ₹${rewardData.discount || 30} off.`);
+        return;
+      }
+
+      // 2. Check if it's a Global Coupon
+      const qGlobal = query(
+        collection(db, 'coupons'),
+        where('code', '==', formattedCode),
+        where('type', '==', 'global'),
+        where('isActive', '==', true)
+      );
+      const globalSnap = await getDocs(qGlobal);
+      if (!globalSnap.empty) {
+        const globalData = globalSnap.docs[0].data();
+        setAppliedCoupon({
+          code: formattedCode,
+          discount: globalData.discount,
+          type: 'global',
+          docId: globalSnap.docs[0].id
+        });
+        setApplyingCoupon(false);
+        Alert.alert("Success", `Promo applied! You got ₹${globalData.discount} off.`);
+        return;
+      }
+
+      // 3. Check if it's a Referral Code
+      const qReferral = query(collection(db, 'users'), where('referralCode', '==', formattedCode));
+      const refSnap = await getDocs(qReferral);
+      
+      if (!refSnap.empty) {
+        const referrer = refSnap.docs[0];
+        if (referrer.id === currentUser.uid) {
+          Alert.alert("Invalid", "You cannot use your own referral code.");
+          setApplyingCoupon(false);
+          return;
+        }
+        
+        // Check if first service booking ever
+        const ordersQ = query(collection(db, 'bookings'), where('userId', '==', currentUser.uid));
+        const ordersSnap = await getDocs(ordersQ);
+        
+        if (!ordersSnap.empty) {
+          Alert.alert("Not Eligible", "Referral codes can only be used on your first booking.");
+          setApplyingCoupon(false);
+          return;
+        }
+        
+        // Fetch dynamic discount
+        let refDiscount = 50;
+        try {
+          const snapRef = await getDoc(doc(db, 'settings', 'referral'));
+          if (snapRef.exists() && snapRef.data().referralDiscount) {
+            refDiscount = snapRef.data().referralDiscount;
+          }
+        } catch(e) {}
+
+        setAppliedCoupon({ 
+          code: formattedCode, 
+          discount: refDiscount, 
+          type: 'referral', 
+          referrerUid: referrer.id 
+        });
+        setApplyingCoupon(false);
+        Alert.alert("Success", `Referral code applied! You got ₹${refDiscount} off.`);
+        return;
+      }
+
+      Alert.alert("Invalid Coupon", "This coupon code is invalid or expired.");
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Could not apply coupon.");
+    }
+    setApplyingCoupon(false);
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+  };
 
   // 1️⃣ DRAFT ORDER CREATION
   const createDraftOrder = async (payMode, payStatus, initialStatus) => {
@@ -70,7 +203,13 @@ export default function PaymentSelectionScreen({ navigation, route }) {
       status: initialStatus, 
       customerName: realCustomerName, customerEmail: realCustomerEmail, customerPhone: realCustomerPhone, 
       technicianId: selectedTechId, technicianName: selectedTechName, technicianStatus: 'Pending', 
-      serviceMode, scheduleDate, scheduleTime, serviceAddress, createdAt: serverTimestamp(),
+      serviceMode, scheduleDate, scheduleTime, serviceAddress, 
+      appliedCoupon: appliedCoupon?.code || null,
+      discountAmount: appliedCoupon?.discount || 0,
+      referrerUid: appliedCoupon?.referrerUid || null,
+      couponDocId: appliedCoupon?.docId || null,
+      referralRewarded: false,
+      createdAt: serverTimestamp(),
     };
 
     const docRef = await addDoc(collection(db, 'bookings'), orderData);
@@ -87,6 +226,16 @@ export default function PaymentSelectionScreen({ navigation, route }) {
         transactionId: transactionId, 
         updatedAt: serverTimestamp()
       });
+
+      // Mark reward coupon as inactive
+      if (appliedCoupon && appliedCoupon.type === 'reward' && appliedCoupon.docId) {
+        await updateDoc(doc(db, 'coupons', appliedCoupon.docId), {
+          isActive: false,
+          usedAt: serverTimestamp(),
+          usedOrderId: displayOrderId
+        });
+      }
+
       setLoading(false);
       // 🚀 FIX: Yahan paymentMode: 'Online' pass kar diya taaki success screen par Pre-paid dikhe
       navigation.navigate('OrderSuccess', { orderId: displayOrderId, paymentMode: 'Online' });
@@ -107,11 +256,66 @@ export default function PaymentSelectionScreen({ navigation, route }) {
     if (method === 'cod') {
       try {
         const draft = await createDraftOrder('Offline', 'Pending', 'Order Placed');
+        
+        // Mark reward coupon as inactive
+        if (appliedCoupon && appliedCoupon.type === 'reward' && appliedCoupon.docId) {
+          await updateDoc(doc(db, 'coupons', appliedCoupon.docId), {
+            isActive: false,
+            usedAt: serverTimestamp(),
+            usedOrderId: draft.orderId
+          });
+        }
+
         setLoading(false);
         // 🚀 FIX: Yahan paymentMode: 'Offline' pass kar diya COD ke liye
         navigation.navigate('OrderSuccess', { orderId: draft.orderId, paymentMode: 'Offline' });
       } catch (error) {
         Alert.alert("Error", "Could not process COD order.");
+        setLoading(false);
+      }
+    } else if (method === 'wallet') {
+      // 🚀 WALLET LOGIC
+      if (walletBalance < amount) {
+        Alert.alert("Insufficient Balance", "You do not have enough wallet balance for this booking. Please add money or choose another method.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const draft = await createDraftOrder('Wallet', 'Paid', 'Order Placed');
+        
+        // Deduct from wallet & add transaction
+        const userRef = doc(db, 'users', currentUser.uid);
+        await updateDoc(userRef, {
+          walletBalance: increment(-amount)
+        });
+        
+        await addDoc(collection(db, 'users', currentUser.uid, 'transactions'), {
+          title: `Paid for Booking #${draft.orderId}`,
+          amount: amount,
+          type: 'debit',
+          orderId: draft.orderId,
+          createdAt: serverTimestamp()
+        });
+
+        // Mark order transaction ID
+        await updateDoc(doc(db, 'bookings', draft.docId), {
+          transactionId: `WAL-${Date.now()}`
+        });
+
+        // Mark reward coupon as inactive
+        if (appliedCoupon && appliedCoupon.type === 'reward' && appliedCoupon.docId) {
+          await updateDoc(doc(db, 'coupons', appliedCoupon.docId), {
+            isActive: false,
+            usedAt: serverTimestamp(),
+            usedOrderId: draft.orderId
+          });
+        }
+
+        setLoading(false);
+        navigation.navigate('OrderSuccess', { orderId: draft.orderId, paymentMode: 'Online' });
+      } catch (error) {
+        Alert.alert("Error", "Could not process Wallet order.");
         setLoading(false);
       }
     } else {
@@ -230,11 +434,50 @@ export default function PaymentSelectionScreen({ navigation, route }) {
       <ScrollView contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
         <View style={styles.amountCard}>
           <Text style={styles.amountLabel}>Amount to Pay</Text>
-          <Text style={styles.amountValue}>₹{amount}</Text>
+          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            {appliedCoupon && (
+              <Text style={styles.originalAmountValue}>₹{initialAmount}</Text>
+            )}
+            <Text style={styles.amountValue}>₹{amount}</Text>
+          </View>
         </View>
 
+        {/* 🎟️ APPLY COUPON SECTION */}
+        <Text style={styles.sectionTitle}>Coupons & Offers</Text>
+        {appliedCoupon ? (
+          <View style={styles.appliedCouponCard}>
+            <View style={styles.appliedCouponLeft}>
+              <MaterialIcons name="verified" size={24} color="#16A34A" />
+              <View style={{marginLeft: 10}}>
+                <Text style={styles.appliedCouponCode}>{appliedCoupon.code}</Text>
+                <Text style={styles.appliedCouponSaved}>You saved ₹{appliedCoupon.discount}</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={removeCoupon} style={styles.removeCouponBtn}>
+              <Text style={styles.removeCouponText}>REMOVE</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.couponInputWrapper}>
+            <TextInput
+              style={styles.couponInput}
+              placeholder="Enter Coupon or Referral Code"
+              value={couponCode}
+              onChangeText={setCouponCode}
+              autoCapitalize="characters"
+            />
+            <TouchableOpacity 
+              style={[styles.applyCouponBtn, !couponCode && { opacity: 0.5 }]} 
+              onPress={handleApplyCoupon}
+              disabled={!couponCode || applyingCoupon}
+            >
+              {applyingCoupon ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.applyCouponText}>APPLY</Text>}
+            </TouchableOpacity>
+          </View>
+        )}
+        <View style={{height: 20}} />
+
         <Text style={styles.sectionTitle}>Select Method</Text>
-        
         {paymentOptions.map((opt) => (
           <TouchableOpacity 
             key={opt.id} 
@@ -247,7 +490,14 @@ export default function PaymentSelectionScreen({ navigation, route }) {
               <MaterialIcons name={opt.icon} size={24} color={method === opt.id ? colors.primary : '#64748B'} />
             </View>
             <View style={{flex: 1, marginLeft: 15}}>
-              <Text style={[styles.optionName, method === opt.id && {color: colors.primary}]}>{opt.name}</Text>
+              <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
+                <Text style={[styles.optionName, method === opt.id && {color: colors.primary}]}>{opt.name}</Text>
+                {opt.id === 'wallet' && (
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: walletBalance >= amount ? '#16A34A' : '#EF4444' }}>
+                    ₹{walletBalance}
+                  </Text>
+                )}
+              </View>
               <Text style={styles.optionDesc}>{opt.desc}</Text>
             </View>
             <Ionicons name={method === opt.id ? "radio-button-on" : "radio-button-off"} size={20} color={method === opt.id ? colors.primary : '#CBD5E1'} />
@@ -290,5 +540,18 @@ const styles = StyleSheet.create({
   btnText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
   webviewHeader: { padding: 15, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0', flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 10 : 15 },
   webviewCloseBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  webviewCloseText: { color: '#EF4444', fontWeight: 'bold', marginLeft: 5 }
+  webviewCloseText: { color: '#EF4444', fontWeight: 'bold', marginLeft: 5 },
+  
+  // Coupon Styles
+  originalAmountValue: { color: 'rgba(255,255,255,0.6)', fontSize: 22, fontWeight: '700', textDecorationLine: 'line-through', marginRight: 10, marginTop: 5 },
+  couponInputWrapper: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 5 },
+  couponInput: { flex: 1, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 12, padding: 14, fontSize: 14, color: '#0F172A', fontWeight: '700' },
+  applyCouponBtn: { backgroundColor: '#0F172A', paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, justifyContent: 'center' },
+  applyCouponText: { color: '#FFF', fontWeight: '800', fontSize: 14 },
+  appliedCouponCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F0FDF4', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#DCFCE7', marginBottom: 5 },
+  appliedCouponLeft: { flexDirection: 'row', alignItems: 'center' },
+  appliedCouponCode: { fontSize: 14, fontWeight: '800', color: '#166534', textTransform: 'uppercase' },
+  appliedCouponSaved: { fontSize: 12, fontWeight: '600', color: '#16A34A', marginTop: 2 },
+  removeCouponBtn: { backgroundColor: '#DCFCE7', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  removeCouponText: { fontSize: 12, fontWeight: '800', color: '#15803D' }
 });

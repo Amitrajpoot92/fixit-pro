@@ -66,29 +66,26 @@ export default function BookingsScreen() {
       
       snapshot.forEach(doc => {
         const data = doc.data();
-        const mode = data.serviceMode || 'home';
+        const mode = data.serviceMode || 'pickup';
         
-        // 🚀 SIRF "HOME VISIT" WALE ORDERS YAHAN DIKHENGE
-        if (mode === 'home') {
-          const dateObj = getDisplayDate(data.scheduleDate, data.createdAt);
-          
-          fetchedBookings.push({
-            id: doc.id,
-            orderId: data.orderId,
-            service: data.services ? data.services.map(s => s.serviceTitle).join(', ') : 'Service',
-            category: `${data.brandName} ${data.modelName}`,
-            month: dateObj.month,
-            day: dateObj.day,
-            time: data.scheduleTime || 'Anytime',
-            dbStatus: data.status ? data.status.toLowerCase() : 'order placed',
-            price: data.totalAmount ? `₹${data.totalAmount}` : 'Pending',
-            proName: data.technicianName || 'Unassigned',
-            proRating: data.technicianRating || null,
-            paymentMode: data.paymentMode || 'Offline', // 🚀 NEW: Payment Mode Added
-            bg: '#D1FAE5',
-            color: '#10B981'
-          });
-        }
+        const dateObj = getDisplayDate(data.scheduleDate, data.createdAt);
+        
+        fetchedBookings.push({
+          id: doc.id,
+          orderId: data.orderId,
+          service: data.services ? data.services.map(s => s.serviceTitle).join(', ') : 'Service',
+          category: `${data.brandName} ${data.modelName}`,
+          month: dateObj.month,
+          day: dateObj.day,
+          time: data.scheduleTime || 'Anytime',
+          dbStatus: data.status ? data.status.toLowerCase() : 'order placed',
+          price: data.totalAmount ? `₹${data.totalAmount}` : 'Pending',
+          proName: data.technicianName || 'Unassigned',
+          proRating: data.technicianRating || null,
+          paymentMode: data.paymentMode || 'Offline', // 🚀 NEW: Payment Mode Added
+          bg: '#D1FAE5',
+          color: '#10B981'
+        });
       });
       
       setBookings(fetchedBookings);
@@ -126,7 +123,7 @@ export default function BookingsScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
       
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Home Services</Text>
+        <Text style={styles.headerTitle}>Service Bookings</Text>
         <TouchableOpacity style={styles.searchBtn}><Ionicons name="search" size={20} color="#0F172A" /></TouchableOpacity>
       </View>
 

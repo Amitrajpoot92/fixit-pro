@@ -21,6 +21,8 @@ import Orders from './Dashboard/pages/admin/orders';
 import ManageHome from './Dashboard/pages/admin/manage-home'; 
 // 📦 NAYA IMPORT: Product Orders (E-commerce Dashboard)
 import ProductOrders from './Dashboard/pages/admin/ProductOrders';
+import Coupons from './Dashboard/pages/admin/coupons';
+import AdminRefunds from './Dashboard/pages/admin/refunds';
 
 // 💰 Admin Financial Pages
 import AdminKyc from './Dashboard/pages/admin/Kyc';
@@ -65,6 +67,9 @@ function App() {
               
               {/* 📦 NAYA ROUTE: E-Commerce Product Orders */}
               <Route path="product-orders" element={<ProductOrders />} />
+              
+              <Route path="coupons" element={<Coupons />} />
+              <Route path="refunds" element={<AdminRefunds />} />
               
               {/* 💰 Financial Routes */}
               <Route path="kyc" element={<AdminKyc />} />
