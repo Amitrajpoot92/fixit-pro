@@ -440,6 +440,37 @@ export default function ProductCheckoutScreen({ navigation, route }) {
     }
   };
 
+  // 🚀 NOT LOGGED IN STATE
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={22} color="#0F172A" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Checkout</Text>
+          <View style={{ width: 22 }} />
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: '#DBEAFE', padding: 20, borderRadius: 50, marginBottom: 20 }}>
+            <Ionicons name="lock-closed-outline" size={50} color="#2563EB" />
+          </View>
+          <Text style={{ fontSize: 24, fontWeight: '900', color: '#0F172A', marginBottom: 10 }}>Login Required</Text>
+          <Text style={{ fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 30, lineHeight: 22 }}>
+            You need to be logged in to proceed with the checkout and place your order.
+          </Text>
+          <TouchableOpacity 
+            style={{ backgroundColor: colors.primary, paddingVertical: 15, paddingHorizontal: 40, borderRadius: 12 }}
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800' }}>Login or Sign Up</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />

@@ -163,7 +163,7 @@ export default function Coupons() {
                       type="number" 
                       value={refDiscount}
                       onChange={(e) => setRefDiscount(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 font-semibold"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 font-semibold text-slate-900"
                     />
                     <p className="text-xs text-slate-500 mt-1">Discount given to a new user when they apply a friend's code.</p>
                   </div>
@@ -173,7 +173,7 @@ export default function Coupons() {
                       type="number" 
                       value={rewardDiscount}
                       onChange={(e) => setRewardDiscount(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 font-semibold"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 font-semibold text-slate-900"
                     />
                     <p className="text-xs text-slate-500 mt-1">Single-use discount coupon given to the referrer after order completion.</p>
                   </div>
@@ -206,7 +206,7 @@ export default function Coupons() {
                       placeholder="e.g. SUMMER50"
                       value={newCouponCode}
                       onChange={(e) => setNewCouponCode(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-purple-500 font-bold uppercase"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-purple-500 font-bold uppercase text-slate-900"
                     />
                   </div>
                   <div>
@@ -217,7 +217,7 @@ export default function Coupons() {
                       placeholder="e.g. Summer Special Offer"
                       value={newCouponTitle}
                       onChange={(e) => setNewCouponTitle(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-purple-500 font-semibold"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-purple-500 font-semibold text-slate-900"
                     />
                   </div>
                   <div>
@@ -227,7 +227,7 @@ export default function Coupons() {
                       placeholder="e.g. Get Flat ₹50 off on all bookings!"
                       value={newCouponDesc}
                       onChange={(e) => setNewCouponDesc(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-purple-500"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-purple-500 text-slate-900"
                     />
                   </div>
                   <div>
@@ -238,7 +238,7 @@ export default function Coupons() {
                       placeholder="e.g. 50"
                       value={newCouponDiscount}
                       onChange={(e) => setNewCouponDiscount(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-purple-500 font-semibold"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-purple-500 font-semibold text-slate-900"
                     />
                   </div>
                   <button 

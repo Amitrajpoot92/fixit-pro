@@ -33,6 +33,7 @@ const shadowStyle = Platform.select({
 export default function ReferAndEarnScreen({ navigation }) {
   const { user } = useAuth();
   const [earnedCoupons, setEarnedCoupons] = useState([]);
+  const [refConfig, setRefConfig] = useState({ rewardDiscount: 30, referralDiscount: 50 });
 
   // 🚀 Referral Code Generator
   const firstName = user?.name ? user.name.split(' ')[0].toUpperCase() : 'USER';
@@ -58,7 +59,17 @@ export default function ReferAndEarnScreen({ navigation }) {
       });
       setEarnedCoupons(coupons);
     });
-    return () => unsubscribe();
+
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'referral'), (docSnap) => {
+      if (docSnap.exists()) {
+        setRefConfig(docSnap.data());
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      unsubSettings();
+    };
   }, [user]);
 
   const handleCopyCode = async (codeToCopy) => {
@@ -70,7 +81,7 @@ export default function ReferAndEarnScreen({ navigation }) {
     try {
       const appUrl = 'https://play.google.com/store/apps/details?id=com.codewebx.fixitpro'; 
       await Share.share({
-        message: `Hey! Use my code ${referralCode} to get ₹50 OFF your first order on FixitPro!\n\nDownload the app now: ${appUrl}`,
+        message: `Hey! Use my code ${referralCode} to get ₹${refConfig.referralDiscount} OFF your first order on FixitPro!\n\nDownload the app now: ${appUrl}`,
       });
     } catch (error) {
       console.error(error.message);
@@ -112,7 +123,7 @@ export default function ReferAndEarnScreen({ navigation }) {
           {/* 📜 TEXT INFO */}
           <Text style={styles.mainHeading}>Invite Friends, Earn Rewards!</Text>
           <Text style={styles.subHeading}>
-            Share your unique referral code with your friends. When they book their first service, both of you get ₹50 cashback instantly in your wallets!
+            Share your unique referral code with your friends. They get a ₹{refConfig.referralDiscount} discount on their 1st booking, and you earn a ₹{refConfig.rewardDiscount} reward coupon!
           </Text>
           
           {/* 🎫 REFERRAL CODE BOX */}
@@ -158,7 +169,7 @@ export default function ReferAndEarnScreen({ navigation }) {
               <View style={[styles.stepNumber, { backgroundColor: '#FEF3C7' }]}>
                 <Text style={[styles.stepNumberText, { color: '#D97706' }]}>3</Text>
               </View>
-              <Text style={styles.stepText}>You get a ₹30 discount coupon when they complete their order!</Text>
+              <Text style={styles.stepText}>You get a ₹{refConfig.rewardDiscount} discount coupon when they complete their order!</Text>
             </View>
           </View>
 

@@ -13,7 +13,7 @@ import {
   Alert
 } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { collection, query, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import * as Clipboard from 'expo-clipboard'; // 🚀 Copy code feature
 
 import { colors } from '../../theme/colors';
