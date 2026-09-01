@@ -18,8 +18,8 @@
     "android": {
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/platform-img/logo.png"
+        "backgroundColor": "#000000",
+        "foregroundImage": "./assets/platform-img/adaptive-icon.png"
       },
       "package": "com.codewebx.fixitpro"
     },
