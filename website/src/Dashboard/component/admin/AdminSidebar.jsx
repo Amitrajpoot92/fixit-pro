@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Package, ShoppingCart, 
   Wrench, Settings, LogOut, X, ShoppingBag, Boxes, MonitorPlay,
-  ShieldCheck, BadgeIndianRupee, PackageOpen, BadgePercent, RefreshCcw
+  ShieldCheck, BadgeIndianRupee, PackageOpen, BadgePercent, RefreshCcw, Users
 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '../../../firebase'; 
@@ -24,6 +24,7 @@ export default function AdminSidebar({ isSidebarOpen, setIsSidebarOpen }) {
   const mainItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
     { name: 'Manage Home', icon: MonitorPlay, path: '/admin/manage-home' },
+    { name: 'Customers', icon: Users, path: '/admin/customers' },
     { name: 'Master Catalog', icon: Package, path: '/admin/catalog' },
     { name: 'Live Bookings', icon: ShoppingCart, path: '/admin/bookings' },
     { name: 'Technicians', icon: Wrench, path: '/admin/technicians' },

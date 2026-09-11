@@ -23,6 +23,7 @@ import ManageHome from './Dashboard/pages/admin/manage-home';
 import ProductOrders from './Dashboard/pages/admin/ProductOrders';
 import Coupons from './Dashboard/pages/admin/coupons';
 import AdminRefunds from './Dashboard/pages/admin/refunds';
+import Customers from './Dashboard/pages/admin/customers';
 
 // 💰 Admin Financial Pages
 import AdminKyc from './Dashboard/pages/admin/Kyc';
@@ -58,6 +59,7 @@ function App() {
             <Routes>
               <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="manage-home" element={<ManageHome />} /> 
+              <Route path="customers" element={<Customers />} />
               <Route path="catalog" element={<Catalog />} />
               <Route path="products" element={<Products />} /> 
               <Route path="inventory" element={<Inventory />} /> 
