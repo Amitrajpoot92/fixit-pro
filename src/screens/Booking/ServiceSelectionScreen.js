@@ -1,7 +1,8 @@
 // src/screens/Booking/ServiceSelectionScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
+  View, Text, StyleSheet, TouchableOpacity, 
   Platform, StatusBar, ScrollView, ActivityIndicator, FlatList, Dimensions, Image 
 } from 'react-native';
 import { MaterialIcons, Ionicons, FontAwesome } from '@expo/vector-icons';

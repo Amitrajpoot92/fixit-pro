@@ -155,19 +155,20 @@ export default function HorizontalSliders({ navigation }) {
                    
                    <View style={styles.productDetails}>
                      <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-                     <View style={styles.priceRow}>
-                       <Text style={styles.currentPrice}>₹{item.price}</Text>
-                       {hasDiscount && <Text style={styles.oldPrice}>₹{item.originalPrice}</Text>}
+                     <View style={styles.bottomRow}>
+                       <View style={styles.priceRow}>
+                         <Text style={styles.currentPrice}>₹{item.price}</Text>
+                         {hasDiscount && <Text style={styles.oldPrice}>₹{item.originalPrice}</Text>}
+                       </View>
+                       <LinearGradient 
+                         colors={['#2563EB', '#1D4ED8']} 
+                         start={{x: 0, y: 0}} end={{x: 1, y: 1}}
+                         style={styles.addButton}
+                       >
+                         <MaterialIcons name="add-shopping-cart" size={14} color="#FFF" />
+                       </LinearGradient>
                      </View>
                    </View>
-                   
-                   <LinearGradient 
-                     colors={['#2563EB', '#1D4ED8']} 
-                     start={{x: 0, y: 0}} end={{x: 1, y: 1}}
-                     style={styles.addButton}
-                   >
-                     <MaterialIcons name="add-shopping-cart" size={14} color="#FFF" />
-                   </LinearGradient>
                 </TouchableOpacity>
               )
             })}
@@ -285,7 +286,8 @@ const styles = StyleSheet.create({
   productImage: { width: '95%', height: '95%' },
   discountBadge: { position: 'absolute', top: 8, left: 8, paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8, shadowColor: '#EF4444', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.3, shadowRadius: 4 },
   discountBadgeText: { color: '#FFF', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
-  productDetails: { paddingHorizontal: 12, paddingTop: 10 },
+  productDetails: { paddingHorizontal: 12, paddingTop: 10, flex: 1 },
+  bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' },
 
   /* 🌟 FOOTER */
   footerContainer: {
@@ -324,8 +326,8 @@ const styles = StyleSheet.create({
     color: '#E2E8F0',
   },
   productName: { fontSize: 13, fontWeight: '800', color: '#0F172A', marginBottom: 6, lineHeight: 18, letterSpacing: -0.2, minHeight: 36 },
-  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap', flex: 1, paddingRight: 4 },
   currentPrice: { fontSize: 15, fontWeight: '900', color: '#10B981', letterSpacing: -0.3 },
   oldPrice: { fontSize: 11, color: '#94A3B8', textDecorationLine: 'line-through', fontWeight: '600' },
-  addButton: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 5, position: 'absolute', bottom: 12, right: 12 },
+  addButton: { width: 32, height: 32, borderRadius: 10, justifyContent: 'center', alignItems: 'center', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 5 },
 });

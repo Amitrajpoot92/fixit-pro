@@ -1,7 +1,8 @@
 // src/screens/home/SearchScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, TextInput, 
+  View, Text, StyleSheet, TextInput, 
   TouchableOpacity, FlatList, ActivityIndicator, Image, 
   Platform, StatusBar 
 } from 'react-native';

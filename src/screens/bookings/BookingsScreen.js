@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 // 🚀 Firebase Imports
 import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { db, auth } from '../../services/firebaseConfig'; 
+import { downloadInvoice } from '../../utils/invoiceGenerator';
 
 const shadowStyle = Platform.select({
   ios: { shadowColor: '#94A3B8', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 15 },
@@ -239,6 +240,14 @@ export default function BookingsScreen() {
                       onPress={() => navigation.navigate('OrderTracking', { orderId: booking.orderId })}
                     >
                       <Text style={styles.btnPrimaryText}>Track Order</Text>
+                    </TouchableOpacity>
+                  )}
+                  {activeTab === 'Past' && (
+                    <TouchableOpacity 
+                      style={[styles.actionBtn, styles.btnPrimary, { backgroundColor: '#2563EB' }]} 
+                      onPress={() => downloadInvoice(booking, 'service')}
+                    >
+                      <Text style={styles.btnPrimaryText}>Download Invoice</Text>
                     </TouchableOpacity>
                   )}
                 </View>

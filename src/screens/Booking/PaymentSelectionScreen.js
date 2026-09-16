@@ -1,7 +1,8 @@
 // src/screens/Booking/PaymentSelectionScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
+  View, Text, StyleSheet, TouchableOpacity, 
   ScrollView, StatusBar, Platform, ActivityIndicator, Alert, TextInput
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';

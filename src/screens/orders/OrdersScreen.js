@@ -8,6 +8,7 @@ import { Image } from 'expo-image';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 import { useNavigation } from '@react-navigation/native';
+import { downloadInvoice } from '../../utils/invoiceGenerator';
 
 import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { auth, db } from '../../services/firebaseConfig'; 
@@ -182,12 +183,22 @@ export default function OrdersScreen() {
                           <Text style={styles.btnPrimaryText}>Track</Text>
                         </TouchableOpacity>
                       ) : (
-                        <TouchableOpacity 
-                          style={[styles.actionBtn, styles.btnSoft, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]} 
-                          onPress={() => navigation.navigate('ProductOrderTracking', { orderId: order.orderId || order.id })} 
-                        >
-                          <Text style={[styles.btnSoftText, { color: '#64748B' }]}>View Details</Text>
-                        </TouchableOpacity>
+                        <>
+                          <TouchableOpacity 
+                            style={[styles.actionBtn, styles.btnSoft, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]} 
+                            onPress={() => navigation.navigate('ProductOrderTracking', { orderId: order.orderId || order.id })} 
+                          >
+                            <Text style={[styles.btnSoftText, { color: '#64748B' }]}>View Details</Text>
+                          </TouchableOpacity>
+                          {order.status?.toLowerCase() === 'delivered' && (
+                            <TouchableOpacity 
+                              style={[styles.actionBtn, styles.btnPrimary, { backgroundColor: '#2563EB' }]} 
+                              onPress={() => downloadInvoice(order, 'product')}
+                            >
+                              <Text style={styles.btnPrimaryText}>Invoice</Text>
+                            </TouchableOpacity>
+                          )}
+                        </>
                       )}
                     </View>
                   </View>

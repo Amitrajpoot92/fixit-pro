@@ -1,7 +1,8 @@
 // src/screens/Booking/CheckoutScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
+  View, Text, StyleSheet, TouchableOpacity, 
   Platform, StatusBar, ScrollView, Alert, Modal 
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';

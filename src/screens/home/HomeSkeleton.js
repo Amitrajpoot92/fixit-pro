@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated, Dimensions, SafeAreaView, ScrollView, Platform, StatusBar } from 'react-native';
+import { View, StyleSheet, Animated, Dimensions, ScrollView, Platform, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../theme/colors';
 
 const { width } = Dimensions.get('window');

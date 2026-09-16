@@ -1,11 +1,11 @@
 // src/screens/profile/SettingsScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
   TouchableOpacity, 
-  SafeAreaView, 
   Platform, 
   StatusBar,
   Alert,

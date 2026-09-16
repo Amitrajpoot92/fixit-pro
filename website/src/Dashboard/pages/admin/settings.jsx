@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../../component/admin/AdminLayout';
-import { Settings, Save, Loader2, DollarSign, Percent, Phone, Mail, ShieldAlert, Building, BellRing } from 'lucide-react';
+import { Settings, Save, Loader2, DollarSign, Percent, Phone, Mail, ShieldAlert, Building, BellRing, MapPin, X } from 'lucide-react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import toast, { Toaster } from 'react-hot-toast';
@@ -8,13 +8,13 @@ import toast, { Toaster } from 'react-hot-toast';
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [newPinCode, setNewPinCode] = useState('');
   const [formData, setFormData] = useState({
     platformFee: 50,
     taxPercentage: 18,
     supportEmail: 'support@fixitpro.com',
     supportPhone: '+91 9876543210',
-    maintenanceMode: false,
-    companyName: 'FixitPro Pvt. Ltd.',
+    allowedPinCodes: [],
   });
 
   // 🚀 Exactly wahi DB path jahan se Mobile App data fetch kar rahi hai
@@ -25,7 +25,8 @@ export default function SettingsPage() {
       try {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-          setFormData(docSnap.data());
+          const data = docSnap.data();
+          setFormData(prev => ({ ...prev, ...data, allowedPinCodes: data.allowedPinCodes || [] }));
         }
       } catch (error) {
         console.error("Error fetching settings:", error);
@@ -130,31 +131,64 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* SECTION 3: General Config */}
+              {/* SECTION 3: Delivery Pin Codes */}
               <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-xl lg:col-span-2">
                 <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-800">
-                  <div className="bg-orange-500/20 p-2 rounded-lg"><Building className="w-6 h-6 text-orange-400"/></div>
-                  <h3 className="text-xl font-bold text-white">General Configurations</h3>
+                  <div className="bg-orange-500/20 p-2 rounded-lg"><MapPin className="w-6 h-6 text-orange-400"/></div>
+                  <h3 className="text-xl font-bold text-white">Delivery Pin Codes</h3>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-slate-300 ml-1">Company / Brand Name</label>
-                    <div className="flex items-center bg-slate-950 rounded-xl border border-slate-700 focus-within:border-orange-500 px-4 py-1 transition-colors">
-                      <Building className="text-slate-500 w-5 h-5 mr-2" />
-                      <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} className="w-full bg-transparent p-3 text-white outline-none" required />
+                <div className="space-y-6">
+                  <div className="flex items-end gap-4">
+                    <div className="space-y-2 flex-1">
+                      <label className="text-sm font-semibold text-slate-300 ml-1">Add Deliverable Pin Code</label>
+                      <div className="flex items-center bg-slate-950 rounded-xl border border-slate-700 focus-within:border-orange-500 px-4 py-1 transition-colors">
+                        <MapPin className="text-slate-500 w-5 h-5 mr-2" />
+                        <input 
+                          type="text" 
+                          value={newPinCode} 
+                          onChange={(e) => setNewPinCode(e.target.value)} 
+                          className="w-full bg-transparent p-3 text-white outline-none" 
+                          placeholder="e.g. 110001" 
+                          maxLength={6}
+                        />
+                      </div>
                     </div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        if (newPinCode.trim().length > 0 && !formData.allowedPinCodes?.includes(newPinCode.trim())) {
+                          setFormData(prev => ({ ...prev, allowedPinCodes: [...(prev.allowedPinCodes || []), newPinCode.trim()] }));
+                          setNewPinCode('');
+                        }
+                      }}
+                      className="bg-orange-600 hover:bg-orange-500 text-white font-bold py-3 px-8 rounded-xl transition-all h-[54px] flex items-center justify-center"
+                    >
+                      Add
+                    </button>
                   </div>
 
-                  <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 flex items-center justify-between">
-                    <div>
-                      <h4 className="text-white font-bold flex items-center gap-2"><ShieldAlert className="w-5 h-5 text-rose-500"/> App Maintenance Mode</h4>
-                      <p className="text-xs text-slate-400 mt-1">If enabled, users and technicians cannot use the app.</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" name="maintenanceMode" checked={formData.maintenanceMode} onChange={handleChange} className="sr-only peer" />
-                      <div className="w-14 h-7 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-rose-500"></div>
-                    </label>
+                  <div className="flex flex-wrap gap-3 mt-4">
+                    {(formData.allowedPinCodes || []).map((pin, index) => (
+                      <div key={index} className="flex items-center gap-2 bg-slate-800 text-orange-400 border border-orange-500/30 px-4 py-2 rounded-full font-bold">
+                        {pin}
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              allowedPinCodes: prev.allowedPinCodes.filter(p => p !== pin)
+                            }));
+                          }}
+                          className="text-slate-400 hover:text-rose-500 ml-1 transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                    {(!formData.allowedPinCodes || formData.allowedPinCodes.length === 0) && (
+                      <p className="text-slate-500 text-sm">No pin codes added yet. Delivery is closed everywhere.</p>
+                    )}
                   </div>
                 </div>
               </div>

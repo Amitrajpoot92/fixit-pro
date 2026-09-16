@@ -1,11 +1,8 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useRef, useState, useEffect } from 'react';
-import { 
-  SafeAreaView, ScrollView, Platform, StatusBar, StyleSheet 
-} from 'react-native';
+import { View, ScrollView, Platform, StatusBar, StyleSheet } from 'react-native';
 import { colors } from '../../theme/colors';
 import { useTabVisibility } from '../../context/TabVisibilityContext'; 
-
-// 🚀 Fixed Import Paths
 import HomeHeader from './HomeHeader';
 import HeroSection from './HeroSection';
 import PromoBanners from './PromoBanners';

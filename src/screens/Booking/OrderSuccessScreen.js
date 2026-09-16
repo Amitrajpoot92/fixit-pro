@@ -1,6 +1,7 @@
 // src/screens/Booking/OrderSuccessScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, StatusBar, SafeAreaView, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, StatusBar, BackHandler } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { colors } from '../../theme/colors';
 

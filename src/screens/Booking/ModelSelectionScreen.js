@@ -1,7 +1,8 @@
 // src/screens/Booking/ModelSelectionScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
+  View, Text, StyleSheet, TouchableOpacity, 
   Platform, StatusBar, FlatList, TextInput, Dimensions,
   ActivityIndicator
 } from 'react-native';

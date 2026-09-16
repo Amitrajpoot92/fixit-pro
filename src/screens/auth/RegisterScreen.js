@@ -1,4 +1,5 @@
 // src/screens/auth/RegisterScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
 import { 
   View, 
@@ -6,7 +7,6 @@ import {
   TextInput, 
   TouchableOpacity, 
   StyleSheet, 
-  SafeAreaView, 
   ScrollView, 
   ActivityIndicator,
   KeyboardAvoidingView,

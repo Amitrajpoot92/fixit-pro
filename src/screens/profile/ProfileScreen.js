@@ -1,10 +1,10 @@
 // src/screens/profile/ProfileScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useRef } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
-  SafeAreaView, 
   ScrollView, 
   TouchableOpacity, 
   Platform, 

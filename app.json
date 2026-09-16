@@ -3,7 +3,7 @@
     "name": "FixitPro",
     "slug": "FixitPro",
     "version": "1.0.1",
-    "sdkVersion": "54.0.0",
+    "sdkVersion": "57.0.0",
     "orientation": "portrait",
     "icon": "./assets/platform-img/logo.png",
     "splash": {
@@ -21,7 +21,10 @@
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/platform-img/adaptive-icon.png"
       },
-      "package": "com.codewebx.fixitpro"
+      "package": "com.codewebx.fixitpro",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/platform-img/logo.png"
@@ -35,7 +38,10 @@
           "microphonePermission": "The app accesses your microphone for KYC verification."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-sharing"
     ],
     "extra": {
       "eas": {

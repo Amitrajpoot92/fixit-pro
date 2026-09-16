@@ -1,4 +1,5 @@
 // src/screens/profile/SupportScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore'; // 🚀 onSnapshot import kiya
 import { db } from '../../services/firebaseConfig';
@@ -6,7 +7,6 @@ import {
   View, 
   Text, 
   StyleSheet, 
-  SafeAreaView, 
   TouchableOpacity, 
   ScrollView, 
   Linking, 

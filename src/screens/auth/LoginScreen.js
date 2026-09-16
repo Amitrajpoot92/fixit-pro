@@ -1,4 +1,5 @@
 // src/screens/auth/LoginScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
 import { 
   View, 
@@ -6,7 +7,6 @@ import {
   TextInput, 
   TouchableOpacity, 
   StyleSheet, 
-  SafeAreaView, 
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,

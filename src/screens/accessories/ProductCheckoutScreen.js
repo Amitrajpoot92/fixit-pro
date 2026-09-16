@@ -1,7 +1,8 @@
 // src/screens/accessories/ProductCheckoutScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, ScrollView, 
+  View, Text, StyleSheet, ScrollView, 
   TouchableOpacity, Image, Platform, StatusBar, ActivityIndicator, Alert, Modal, TextInput
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';

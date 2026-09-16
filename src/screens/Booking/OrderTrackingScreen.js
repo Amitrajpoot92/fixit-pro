@@ -1,7 +1,8 @@
 // src/screens/Booking/OrderTrackingScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, TouchableOpacity, 
+  View, Text, StyleSheet, TouchableOpacity, 
   StatusBar, ScrollView, Platform, ActivityIndicator, Linking, Modal, TextInput, Alert 
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';

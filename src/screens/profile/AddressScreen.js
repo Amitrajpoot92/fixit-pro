@@ -1,10 +1,10 @@
 // src/screens/profile/AddressScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
-  SafeAreaView, 
   TouchableOpacity, 
   ScrollView, 
   Platform, 
@@ -16,7 +16,7 @@ import {
   KeyboardAvoidingView
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
 
 import { colors } from '../../theme/colors';
 import { useAuth } from '../../context/AuthContext';
@@ -41,6 +41,23 @@ export default function AddressScreen({ navigation }) {
   const [city, setCity] = useState('');
   const [pincode, setPincode] = useState('');
   const [saving, setSaving] = useState(false);
+  const [allowedPinCodes, setAllowedPinCodes] = useState([]);
+
+  // 🚀 Fetch global allowed pin codes
+  useEffect(() => {
+    const fetchGlobalConfig = async () => {
+      try {
+        const docRef = doc(db, 'admin_settings', 'global_config');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setAllowedPinCodes(docSnap.data().allowedPinCodes || []);
+        }
+      } catch (error) {
+        console.error("Error fetching global config:", error);
+      }
+    };
+    fetchGlobalConfig();
+  }, []);
 
   // 🚀 1. Real-time Fetch Addresses from Firestore Subcollection
   useEffect(() => {
@@ -89,6 +106,11 @@ export default function AddressScreen({ navigation }) {
   const handleSave = async () => {
     if (!flat.trim() || !area.trim() || !city.trim() || !pincode.trim()) {
       Alert.alert('Incomplete Details', 'Please fill all the address fields.');
+      return;
+    }
+
+    if (allowedPinCodes.length > 0 && !allowedPinCodes.includes(pincode.trim())) {
+      Alert.alert('Delivery Unavailable', 'This pin code is not applicable for delivery.');
       return;
     }
 

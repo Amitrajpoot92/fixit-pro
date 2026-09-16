@@ -1,8 +1,10 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, 
-  Image, Platform, StatusBar, Alert, FlatList, Dimensions, Animated, Share
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, 
+  Image, Platform, StatusBar, Alert, FlatList, Dimensions, Animated, Share, Modal
 } from 'react-native';
+import ImageViewer from 'react-native-image-zoom-viewer';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { collection, addDoc, getDocs, query, where, updateDoc, doc, increment, onSnapshot, limit } from 'firebase/firestore';
 import { db } from '../../services/firebaseConfig';
@@ -21,6 +23,11 @@ export default function ProductDetailScreen({ navigation, route }) {
   const productImages = product.images && product.images.length > 0 ? product.images : [product.image].filter(Boolean);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const flatListRef = useRef(null);
+
+  // 🚀 Zoom State
+  const [isZoomVisible, setIsZoomVisible] = useState(false);
+  const [zoomIndex, setZoomIndex] = useState(0);
+  const zoomImages = productImages.map(img => ({ url: img }));
 
   // 🚀 Cart Badge Count State
   const [cartCount, setCartCount] = useState(0);
@@ -182,9 +189,15 @@ export default function ProductDetailScreen({ navigation, route }) {
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={onMomentumScrollEnd}
             keyExtractor={(_, index) => index.toString()}
-            renderItem={({ item }) => (
+            renderItem={({ item, index }) => (
               <View style={{ width: width - 30, height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                <Image source={{ uri: item }} style={styles.mainImage} resizeMode="contain" />
+                <TouchableOpacity 
+                  activeOpacity={0.9} 
+                  onPress={() => { setZoomIndex(index); setIsZoomVisible(true); }} 
+                  style={{ width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
+                >
+                  <Image source={{ uri: item }} style={styles.mainImage} resizeMode="contain" />
+                </TouchableOpacity>
               </View>
             )}
           />
@@ -311,6 +324,21 @@ export default function ProductDetailScreen({ navigation, route }) {
         </Animated.View>
       )}
 
+      {/* 🚀 IMAGE ZOOM MODAL */}
+      <Modal visible={isZoomVisible} transparent={true} animationType="fade" onRequestClose={() => setIsZoomVisible(false)}>
+        <ImageViewer 
+          imageUrls={zoomImages}
+          index={zoomIndex}
+          onSwipeDown={() => setIsZoomVisible(false)}
+          enableSwipeDown={true}
+          renderHeader={() => (
+            <TouchableOpacity onPress={() => setIsZoomVisible(false)} style={styles.closeZoomBtn}>
+              <Ionicons name="close" size={28} color="#FFF" />
+            </TouchableOpacity>
+          )}
+        />
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -382,5 +410,8 @@ const styles = StyleSheet.create({
   recPrice: { fontSize: 15, fontWeight: '800', color: '#F97316' },
 
   // Animation
-  flyingElement: { position: 'absolute', width: 60, height: 60, backgroundColor: '#FFF', borderRadius: 12, padding: 5, zIndex: 1000, elevation: 1000, borderWidth: 1, borderColor: '#E2E8F0' }
+  flyingElement: { position: 'absolute', width: 60, height: 60, backgroundColor: '#FFF', borderRadius: 12, padding: 5, zIndex: 1000, elevation: 1000, borderWidth: 1, borderColor: '#E2E8F0' },
+
+  // Zoom Modal
+  closeZoomBtn: { position: 'absolute', top: Platform.OS === 'ios' ? 50 : 20, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }
 });

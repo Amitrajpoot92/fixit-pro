@@ -1,10 +1,10 @@
 // src/screens/profile/EditProfileScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
-  SafeAreaView, 
   TouchableOpacity, 
   TextInput, 
   StatusBar, 

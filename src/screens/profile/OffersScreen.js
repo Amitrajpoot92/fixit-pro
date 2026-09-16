@@ -1,10 +1,10 @@
 // src/screens/profile/OffersScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   StyleSheet, 
-  SafeAreaView, 
   TouchableOpacity, 
   FlatList, 
   Platform, 
