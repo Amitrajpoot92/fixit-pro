@@ -29,7 +29,7 @@ export default function RegisterScreen({ navigation }) {
   const handleRegister = async () => {
     // 🧹 Clean Data Check (Future-proofing database)
     const cleanName = name.trim();
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
     const cleanMobile = mobile.trim();
 
     if (!cleanName || !cleanMobile || !cleanEmail || !password) {

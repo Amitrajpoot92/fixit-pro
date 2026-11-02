@@ -26,7 +26,7 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
 
   const handleForgotPassword = async () => {
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) {
       alert("Please enter your email address first to reset password.");
       return;
@@ -48,7 +48,7 @@ export default function LoginScreen({ navigation }) {
 
   const handleLogin = async () => {
     // 🧹 Clean inputs before processing
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
     
     if (!cleanEmail || !password) {
       alert("Please enter both email and password");
