@@ -26,6 +26,9 @@
       }
     },
     "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
       "env": {
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAxAbK8CqYFBNAG_9TJkKx6cjgsV4I2DN0",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "fixit-pro-c9072.firebaseapp.com",
