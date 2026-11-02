@@ -45,7 +45,7 @@ export default function HomeScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
       
       {/* 1. HEADER & SEARCH BAR */}
@@ -75,9 +75,7 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#F8FAFC',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 
-  },
+    backgroundColor: '#F8FAFC',},
   scrollContent: { 
     paddingBottom: 20 
   }

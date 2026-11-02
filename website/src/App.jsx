@@ -14,12 +14,13 @@ import AdminDashboard from './Dashboard/pages/admin/dashboard';
 import Catalog from './Dashboard/pages/admin/catalog';
 import Bookings from './Dashboard/pages/admin/bookings';
 import Technicians from './Dashboard/pages/admin/technicians';
+import Operators from './Dashboard/pages/admin/operators'; // 🚀 NAYA IMPORT: Operator Management
 import AdminSettings from './Dashboard/pages/admin/settings';
 import Products from './Dashboard/pages/admin/products'; 
 import Inventory from './Dashboard/pages/admin/inventory'; 
 import Orders from './Dashboard/pages/admin/orders';
 import ManageHome from './Dashboard/pages/admin/manage-home'; 
-// 📦 NAYA IMPORT: Product Orders (E-commerce Dashboard)
+// 📦 Product Orders (E-commerce Dashboard)
 import ProductOrders from './Dashboard/pages/admin/ProductOrders';
 import Coupons from './Dashboard/pages/admin/coupons';
 import AdminRefunds from './Dashboard/pages/admin/refunds';
@@ -53,23 +54,24 @@ function App() {
         <Route path="/admin" element={<AdminLogin />} />
         <Route path="/technician" element={<TechLogin />} />
 
-        {/* 🔒 Protected Admin Routes Group */}
+        {/* 🔒 Protected Admin / Operator Routes Group */}
         <Route path="/admin/*" element={
           <ProtectedRoute allowedRole="admin">
             <Routes>
+              {/* Common Accessible Routes for Operator & Admin */}
+              <Route path="bookings" element={<Bookings />} />
+              <Route path="product-orders" element={<ProductOrders />} />
+              <Route path="products" element={<Products />} /> 
+              <Route path="inventory" element={<Inventory />} /> 
+              <Route path="catalog" element={<Catalog />} />
+              <Route path="orders" element={<Orders />} />
+
+              {/* Admin-Only Routes */}
               <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="manage-home" element={<ManageHome />} /> 
               <Route path="customers" element={<Customers />} />
-              <Route path="catalog" element={<Catalog />} />
-              <Route path="products" element={<Products />} /> 
-              <Route path="inventory" element={<Inventory />} /> 
-              <Route path="orders" element={<Orders />} />
-              <Route path="bookings" element={<Bookings />} />
               <Route path="technicians" element={<Technicians />} />
-              
-              {/* 📦 NAYA ROUTE: E-Commerce Product Orders */}
-              <Route path="product-orders" element={<ProductOrders />} />
-              
+              <Route path="operators" element={<Operators />} /> 
               <Route path="coupons" element={<Coupons />} />
               <Route path="refunds" element={<AdminRefunds />} />
               

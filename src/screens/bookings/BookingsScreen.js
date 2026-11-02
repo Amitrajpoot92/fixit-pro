@@ -1,7 +1,8 @@
 // src/screens/bookings/BookingsScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useRef, useState, useEffect } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, FlatList, 
+  View, Text, StyleSheet, FlatList, 
   TouchableOpacity, Platform, StatusBar, ActivityIndicator 
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
@@ -85,7 +86,8 @@ export default function BookingsScreen() {
           proRating: data.technicianRating || null,
           paymentMode: data.paymentMode || 'Offline', // 🚀 NEW: Payment Mode Added
           bg: '#D1FAE5',
-          color: '#10B981'
+          color: '#10B981',
+          ...data
         });
       });
       
@@ -120,12 +122,11 @@ export default function BookingsScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
       
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Service Bookings</Text>
-        <TouchableOpacity style={styles.searchBtn}><Ionicons name="search" size={20} color="#0F172A" /></TouchableOpacity>
       </View>
 
       <View style={styles.tabWrapper}>
@@ -260,10 +261,9 @@ export default function BookingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
+  container: { flex: 1, backgroundColor: '#F8FAFC',},
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
   headerTitle: { fontSize: 26, fontWeight: '900', color: '#0F172A' },
-  searchBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', elevation: 2 },
   
   tabWrapper: { flexDirection: 'row', backgroundColor: '#F1F5F9', marginHorizontal: 20, borderRadius: 14, padding: 4, marginBottom: 20 },
   pillButton: { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },

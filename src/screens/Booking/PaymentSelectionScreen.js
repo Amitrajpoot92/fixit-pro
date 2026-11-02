@@ -43,6 +43,8 @@ export default function PaymentSelectionScreen({ navigation, route }) {
   const scheduleTime = route.params?.scheduleTime || null;
   const serviceAddress = route.params?.serviceAddress || null; 
   const selectedTechId = route.params?.selectedTechId; 
+  const pickupFee = route.params?.pickupFee ?? (serviceMode === 'pickup' ? 99 : 0);
+  const deliveryCharge = route.params?.deliveryCharge ?? pickupFee;
   const selectedTechName = route.params?.selectedTechName;
 
   const paymentOptions = [
@@ -205,6 +207,7 @@ export default function PaymentSelectionScreen({ navigation, route }) {
       customerName: realCustomerName, customerEmail: realCustomerEmail, customerPhone: realCustomerPhone, 
       technicianId: selectedTechId, technicianName: selectedTechName, technicianStatus: 'Pending', 
       serviceMode, scheduleDate, scheduleTime, serviceAddress, 
+      pickupFee, deliveryCharge,
       appliedCoupon: appliedCoupon?.code || null,
       discountAmount: appliedCoupon?.discount || 0,
       referrerUid: appliedCoupon?.referrerUid || null,

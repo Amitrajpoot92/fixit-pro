@@ -60,7 +60,7 @@ export default function ProfileScreen() {
   // 🔴 CONDITIONAL RENDER: GUEST VIEW (Logged Out)
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <StatusBar barStyle="dark-content" backgroundColor={colors.background} translucent={false} />
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Profile</Text>
@@ -86,7 +86,7 @@ export default function ProfileScreen() {
 
   // 🟢 CONDITIONAL RENDER: LOGGED IN VIEW (Real Data)
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} translucent={false} />
 
       <View style={styles.header}>
@@ -145,9 +145,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: colors.background, 
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 
-  },
+    backgroundColor: colors.background,},
   header: { padding: 20 },
   headerTitle: { fontSize: 24, fontWeight: '900', color: colors.textDark },
   

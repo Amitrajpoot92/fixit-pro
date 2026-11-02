@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom'; // 👈 Edit info lene aur wapas bhejane ke liye
+import { useLocation, useNavigate } from 'react-router-dom';
 import { UploadCloud, CheckCircle, AlertCircle, Loader2, Image as ImageIcon, X, Plus, Edit, Trash2, Settings, ArrowLeft } from 'lucide-react';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../firebase'; 
@@ -19,7 +19,7 @@ export default function Products() {
   const [editingProductId, setEditingProductId] = useState(null);
   const [editingCollection, setEditingCollection] = useState(null);
 
-  // 🚀 Multiple Images State (Handles both existing URLs and new Files)
+  // 🚀 Multiple Images State
   const [productImages, setProductImages] = useState([]); // Format: { file: File|null, url: string, isExisting: boolean }
 
   // 🚀 Dynamic Category States
@@ -29,7 +29,7 @@ export default function Products() {
   const [editingCatId, setEditingCatId] = useState(null);
 
   const [formData, setFormData] = useState({
-    name: '', category: '', condition: 'New', price: '', originalPrice: '', description: '',
+    name: '', category: '', condition: 'New', price: '', originalPrice: '', stock: '10', description: '',
   });
 
   // 🚀 Detect Edit Mode from Navigation State
@@ -41,12 +41,19 @@ export default function Products() {
       setEditingProductId(editData.id);
       setEditingCollection(editCollection);
       
+      const currentStock = editData.stock !== undefined 
+        ? String(editData.stock) 
+        : (editData.quantity !== undefined 
+            ? String(editData.quantity) 
+            : (editData.inStock === false ? '0' : '10'));
+
       setFormData({
         name: editData.name || '',
         category: editData.category || '',
         condition: editData.condition || 'New',
         price: editData.price || '',
         originalPrice: editData.originalPrice || '',
+        stock: currentStock,
         description: editData.description || '',
       });
 
@@ -112,7 +119,7 @@ export default function Products() {
     }
   };
 
-  // 🚀 Remove Image (Works for both old and new)
+  // 🚀 Remove Image
   const removeImage = (index) => {
     setProductImages(prev => prev.filter((_, i) => i !== index));
   };
@@ -121,9 +128,16 @@ export default function Products() {
   const handleCancelEdit = () => {
     setEditingProductId(null);
     setEditingCollection(null);
-    setFormData({ name: '', category: categories[0]?.name || '', condition: 'New', price: '', originalPrice: '', description: '' });
+    setFormData({ 
+      name: '', 
+      category: categories[0]?.name || '', 
+      condition: 'New', 
+      price: '', 
+      originalPrice: '', 
+      stock: '10', 
+      description: '' 
+    });
     setProductImages([]);
-    // Clear the location state so it doesn't stay in edit mode on refresh
     navigate('/admin/products', { replace: true, state: {} });
   };
 
@@ -147,7 +161,6 @@ export default function Products() {
     try {
       if (productImages.length === 0) throw new Error("Please have at least one product image.");
       
-      // 🚀 Bulk Handle Images (Upload new ones, keep old ones)
       const uploadPromises = productImages.map(async (img) => {
         if (img.isExisting) return img.url; // Already on server
         return await uploadToImageKit(img.file); // Needs uploading
@@ -155,13 +168,17 @@ export default function Products() {
       const imageUrlsArray = await Promise.all(uploadPromises);
 
       const targetCollection = formData.condition === 'New' ? 'new_products' : 'refurbished_products';
-      
+      const stockNum = Math.max(0, parseInt(formData.stock, 10) || 0);
+
       const productData = {
         name: formData.name, 
         category: formData.category, 
         condition: formData.condition,
         price: Number(formData.price), 
         originalPrice: formData.originalPrice ? Number(formData.originalPrice) : null,
+        stock: stockNum,
+        quantity: stockNum,
+        inStock: stockNum > 0,
         description: formData.description, 
         image: imageUrlsArray[0], // Main thumbnail
         images: imageUrlsArray,   // Array of all images
@@ -170,23 +187,30 @@ export default function Products() {
       if (editingProductId) {
         // UPDATE MODE
         if (editingCollection && editingCollection !== targetCollection) {
-          // Edge case: Admin changed condition (e.g. New -> Refurbished), move document
+          // Changed condition: move document to target collection
           await deleteDoc(doc(db, editingCollection, editingProductId));
           productData.createdAt = serverTimestamp();
           await addDoc(collection(db, targetCollection), productData);
         } else {
-          // Normal Update
           productData.updatedAt = serverTimestamp();
           await updateDoc(doc(db, targetCollection, editingProductId), productData);
         }
         setSuccess(`${formData.name} updated successfully!`);
-        setTimeout(() => handleCancelEdit(), 2000); // Redirect/reset after 2s
+        setTimeout(() => handleCancelEdit(), 2000);
       } else {
         // ADD MODE
         productData.createdAt = serverTimestamp();
         await addDoc(collection(db, targetCollection), productData);
         setSuccess(`${formData.name} added successfully!`);
-        setFormData({ name: '', category: categories[0]?.name || '', condition: 'New', price: '', originalPrice: '', description: '' });
+        setFormData({ 
+          name: '', 
+          category: categories[0]?.name || '', 
+          condition: 'New', 
+          price: '', 
+          originalPrice: '', 
+          stock: '10', 
+          description: '' 
+        });
         setProductImages([]);
       }
     } catch (err) { setError(err.message); } 
@@ -202,7 +226,7 @@ export default function Products() {
               {editingProductId ? <span className="text-blue-400">Update Product</span> : 'Add New Product'}
             </h1>
             <p className="text-slate-400 mt-1">
-              {editingProductId ? 'Editing existing product details.' : 'Upload parts, accessories, or refurbished devices.'}
+              {editingProductId ? 'Editing existing product details & inventory.' : 'Upload parts, accessories, or refurbished devices.'}
             </p>
           </div>
           {editingProductId && (
@@ -218,7 +242,7 @@ export default function Products() {
         <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 lg:p-8 shadow-xl">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* 🚀 Multiple Image Upload Section */}
+            {/* Multiple Image Upload Section */}
             <div className="md:col-span-2">
               <label className="block text-sm font-semibold text-slate-300 mb-2">Product Images (Upload multiple)</label>
               
@@ -282,6 +306,35 @@ export default function Products() {
             <div>
               <label className="block text-sm font-semibold text-slate-300 mb-2">Original MRP (Optional, ₹)</label>
               <input type="number" name="originalPrice" min="0" value={formData.originalPrice} onChange={handleInputChange} placeholder="4500 (For showing discount)" className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500" />
+            </div>
+
+            {/* 🚀 Stock / Quantity Input */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-semibold text-slate-300 mb-1">
+                Stock Quantity (Units Available)
+              </label>
+              <div className="flex items-center gap-3">
+                <input 
+                  type="number" 
+                  name="stock" 
+                  required 
+                  min="0" 
+                  value={formData.stock} 
+                  onChange={handleInputChange} 
+                  placeholder="e.g. 15 (Set 0 to mark Out of Stock)" 
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500" 
+                />
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, stock: '0' }))}
+                  className="px-4 py-3 text-xs font-bold rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 whitespace-nowrap transition-colors"
+                >
+                  Set Out of Stock (0)
+                </button>
+              </div>
+              <p className="text-xs text-slate-400 mt-1.5">
+                Note: Setting stock to 0 automatically marks this product as &quot;Out of Stock&quot; on the app/store.
+              </p>
             </div>
 
             <div className="md:col-span-2">

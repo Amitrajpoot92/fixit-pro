@@ -18,6 +18,28 @@ export default function ProductDetailScreen({ navigation, route }) {
   const { product } = route.params;
   const { user } = useAuth();
   
+  // 🚀 Real-time Live Product Sync
+  const [liveProduct, setLiveProduct] = useState(product);
+
+  useEffect(() => {
+    if (!product?.id) return;
+    const collectionName = product.condition === 'Refurbished' ? 'refurbished_products' : 'new_products';
+    const unsub = onSnapshot(doc(db, collectionName, product.id), (snap) => {
+      if (snap.exists()) {
+        setLiveProduct(prev => ({ ...prev, ...snap.data(), id: snap.id }));
+      }
+    });
+    return () => unsub();
+  }, [product?.id, product?.condition]);
+
+  // 🚀 Stock & Availability State
+  const stockCount = typeof liveProduct.stock === 'number' 
+    ? liveProduct.stock 
+    : (typeof liveProduct.quantity === 'number' 
+        ? liveProduct.quantity 
+        : (liveProduct.inStock === false ? 0 : 10));
+  const isOutOfStock = stockCount <= 0 || liveProduct.inStock === false;
+
   // 🚀 Image Carousel State
   // Puraani aur nayi dono products ke liye logic (image vs images array)
   const productImages = product.images && product.images.length > 0 ? product.images : [product.image].filter(Boolean);
@@ -72,27 +94,39 @@ export default function ProductDetailScreen({ navigation, route }) {
   const onMomentumScrollEnd = (event) => {
     const cardWidth = width - 30;
     const newIndex = Math.round(event.nativeEvent.contentOffset.x / cardWidth);
-    setCurrentImageIndex(newIndex);
+    if (newIndex >= 0 && newIndex < productImages.length) {
+      setCurrentImageIndex(newIndex);
+    }
+  };
+
+  // 🚀 Select image when thumbnail is clicked
+  const handleSelectImage = (index) => {
+    setCurrentImageIndex(index);
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({
+        offset: index * (width - 30),
+        animated: true,
+      });
+    }
   };
 
   const scrollLeft = () => {
     if (currentImageIndex > 0) {
-      const nextIndex = currentImageIndex - 1;
-      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-      setCurrentImageIndex(nextIndex);
+      handleSelectImage(currentImageIndex - 1);
     }
   };
 
   const scrollRight = () => {
     if (currentImageIndex < productImages.length - 1) {
-      const nextIndex = currentImageIndex + 1;
-      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-      setCurrentImageIndex(nextIndex);
+      handleSelectImage(currentImageIndex + 1);
     }
   };
 
   // 🚀 ADD TO CART LOGIC WITH ANIMATION
   const addToCart = async () => {
+    if (isOutOfStock) {
+      return Alert.alert("Out of Stock", "This product is currently out of stock. Please check back later.");
+    }
     if (!user) return Alert.alert("Login Required", "Please login to add to cart.");
     
     // 1. Trigger Animation
@@ -130,9 +164,43 @@ export default function ProductDetailScreen({ navigation, route }) {
       if (!snap.empty) {
         await updateDoc(doc(db, `users/${user.uid}/cart`, snap.docs[0].id), { quantity: increment(1) });
       } else {
-        await addDoc(collection(db, `users/${user.uid}/cart`), { ...product, productId: product.id, quantity: 1 });
+        await addDoc(collection(db, `users/${user.uid}/cart`), { ...product, ...liveProduct, productId: product.id, quantity: 1 });
       }
     } catch (e) { console.error(e); }
+  };
+
+  // 🚀 Direct Buy Now (Instant Checkout)
+  const handleBuyNow = () => {
+    if (isOutOfStock) {
+      return Alert.alert("Out of Stock", "This product is currently out of stock. Please check back later.");
+    }
+    if (!user) {
+      Alert.alert(
+        "Login Required",
+        "Please login to proceed with your order.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Login", onPress: () => navigation.navigate("Login") }
+        ]
+      );
+      return;
+    }
+
+    const directItem = {
+      ...product,
+      ...liveProduct,
+      productId: product.id,
+      name: liveProduct.name || product.name,
+      category: liveProduct.category || product.category,
+      price: Number(liveProduct.price || product.price),
+      quantity: 1,
+      image: liveProduct.image || product.image || (liveProduct.images && liveProduct.images[0]) || '',
+    };
+
+    navigation.navigate('ProductCheckout', {
+      cartItems: [directItem],
+      totalAmount: Number(liveProduct.price || product.price)
+    });
   };
 
   // 🚀 Share Product Logic
@@ -147,7 +215,7 @@ export default function ProductDetailScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       
       {/* 🟢 HEADER */}
@@ -189,6 +257,12 @@ export default function ProductDetailScreen({ navigation, route }) {
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={onMomentumScrollEnd}
             keyExtractor={(_, index) => index.toString()}
+            getItemLayout={(_, index) => ({
+              length: width - 30,
+              offset: (width - 30) * index,
+              index,
+            })}
+            initialNumToRender={productImages.length}
             renderItem={({ item, index }) => (
               <View style={{ width: width - 30, height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                 <TouchableOpacity 
@@ -209,7 +283,7 @@ export default function ProductDetailScreen({ navigation, route }) {
             {productImages.map((img, idx) => (
               <TouchableOpacity 
                 key={idx} 
-                onPress={() => setCurrentImageIndex(idx)}
+                onPress={() => handleSelectImage(idx)} activeOpacity={0.7}
                 style={[styles.thumbnailWrapper, currentImageIndex === idx && styles.thumbnailActive]}
               >
                 <Image source={{ uri: img }} style={styles.thumbnailImg} resizeMode="contain" />
@@ -230,6 +304,19 @@ export default function ProductDetailScreen({ navigation, route }) {
               <Ionicons name="star" size={14} color="#F59E0B" style={{marginRight: 4}} />
               <Text style={styles.accentPillTextDark}>4.8 EXPERT RATING</Text>
             </View>
+            {isOutOfStock ? (
+              <View style={styles.outOfStockPillDetail}>
+                <Ionicons name="close-circle" size={13} color="#DC2626" style={{marginRight: 4}} />
+                <Text style={styles.outOfStockPillDetailText}>OUT OF STOCK</Text>
+              </View>
+            ) : (
+              <View style={styles.inStockPillDetail}>
+                <Ionicons name="checkmark-circle" size={13} color="#16A34A" style={{marginRight: 4}} />
+                <Text style={styles.inStockPillDetailText}>
+                  {stockCount <= 5 ? `ONLY ${stockCount} LEFT` : 'IN STOCK'}
+                </Text>
+              </View>
+            )}
           </View>
           
           <Text style={styles.productTitle}>{product.name}</Text>
@@ -294,15 +381,32 @@ export default function ProductDetailScreen({ navigation, route }) {
       {/* 🟢 BOTTOM ACTION BAR */}
       <View style={styles.bottomActionBar}>
         <View style={styles.bottomPriceBox}>
-          <Text style={styles.bottomPrice}>₹{product.price}</Text>
-          {product.originalPrice && product.originalPrice > product.price && (
-            <Text style={styles.bottomOriginalPrice}>₹{product.originalPrice}</Text>
+          <Text style={styles.bottomPrice}>₹{liveProduct.price || product.price}</Text>
+          {(liveProduct.originalPrice || product.originalPrice) && (liveProduct.originalPrice || product.originalPrice) > (liveProduct.price || product.price) && (
+            <Text style={styles.bottomOriginalPrice}>₹{liveProduct.originalPrice || product.originalPrice}</Text>
           )}
         </View>
         
-        <TouchableOpacity style={styles.buyBtn} onPress={addToCart} activeOpacity={0.8}>
-          <Text style={styles.buyBtnText}>Add to Cart</Text>
-        </TouchableOpacity>
+        {isOutOfStock ? (
+          <View style={styles.outOfStockBottomBtn}>
+            <Ionicons name="alert-circle-outline" size={18} color="#94A3B8" style={{marginRight: 6}} />
+            <Text style={styles.outOfStockBottomText}>Currently Out of Stock</Text>
+          </View>
+        ) : (
+          <View style={styles.bottomButtonsRow}>
+            {/* 1. Add to Cart Button */}
+            <TouchableOpacity style={styles.cartBtn} onPress={addToCart} activeOpacity={0.8}>
+              <Ionicons name="cart-outline" size={18} color="#EA580C" />
+              <Text style={styles.cartBtnText}>Add to Cart</Text>
+            </TouchableOpacity>
+
+            {/* 2. Buy Now Button */}
+            <TouchableOpacity style={styles.buyNowBtn} onPress={handleBuyNow} activeOpacity={0.8}>
+              <Ionicons name="flash" size={16} color="#FFF" />
+              <Text style={styles.buyNowBtnText}>Buy Now</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* 🚀 FLYING ANIMATION VIEW */}
@@ -344,7 +448,7 @@ export default function ProductDetailScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
+  container: { flex: 1, backgroundColor: '#FFFFFF', },
   
   // Header
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 15, paddingVertical: 10 },
@@ -392,10 +496,79 @@ const styles = StyleSheet.create({
   highlightText: { fontSize: 14, color: '#475569', lineHeight: 22, fontWeight: '500' },
 
   // Bottom Action Bar
-  bottomActionBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', flexDirection: 'row', paddingHorizontal: 20, paddingTop: 15, paddingBottom: Platform.OS === 'ios' ? 35 : 20, borderTopWidth: 1, borderColor: '#F1F5F9', alignItems: 'center', justifyContent: 'space-between' },
-  bottomPriceBox: { flex: 1 },
-  bottomPrice: { fontSize: 24, fontWeight: '800', color: '#1E293B' },
-  bottomOriginalPrice: { fontSize: 14, color: '#94A3B8', textDecorationLine: 'line-through', marginTop: 2 },
+  bottomActionBar: { 
+    position: 'absolute', 
+    bottom: 0, 
+    left: 0, 
+    right: 0, 
+    backgroundColor: '#FFFFFF', 
+    flexDirection: 'row', 
+    paddingHorizontal: 16, 
+    paddingTop: 12, 
+    paddingBottom: Platform.OS === 'ios' ? 32 : 16, 
+    borderTopWidth: 1, 
+    borderColor: '#F1F5F9', 
+    alignItems: 'center', 
+    justifyContent: 'space-between',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.06, shadowRadius: 6 },
+      android: { elevation: 10 }
+    })
+  },
+  bottomPriceBox: { 
+    marginRight: 10,
+    justifyContent: 'center',
+  },
+  bottomPrice: { fontSize: 22, fontWeight: '900', color: '#0F172A' },
+  bottomOriginalPrice: { fontSize: 12, color: '#94A3B8', textDecorationLine: 'line-through', marginTop: 1 },
+  bottomButtonsRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  cartBtn: { 
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF7ED', 
+    borderWidth: 1.5,
+    borderColor: '#FED7AA',
+    paddingHorizontal: 12, 
+    paddingVertical: 12, 
+    borderRadius: 14,
+    flex: 1,
+  },
+  cartBtnText: { 
+    color: '#EA580C', 
+    fontSize: 13, 
+    fontWeight: '700', 
+    letterSpacing: 0.2,
+    marginLeft: 3,
+  },
+  buyNowBtn: { 
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F97316', 
+    paddingHorizontal: 14, 
+    paddingVertical: 12, 
+    borderRadius: 14,
+    flex: 1.1,
+    shadowColor: '#F97316',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  buyNowBtnText: { 
+    color: '#FFFFFF', 
+    fontSize: 13.5, 
+    fontWeight: '800', 
+    letterSpacing: 0.3,
+    marginLeft: 3,
+  },
   buyBtn: { backgroundColor: '#F97316', paddingHorizontal: 35, paddingVertical: 15, borderRadius: 14 },
   buyBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
 
@@ -413,5 +586,52 @@ const styles = StyleSheet.create({
   flyingElement: { position: 'absolute', width: 60, height: 60, backgroundColor: '#FFF', borderRadius: 12, padding: 5, zIndex: 1000, elevation: 1000, borderWidth: 1, borderColor: '#E2E8F0' },
 
   // Zoom Modal
-  closeZoomBtn: { position: 'absolute', top: Platform.OS === 'ios' ? 50 : 20, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }
+  closeZoomBtn: { position: 'absolute', top: Platform.OS === 'ios' ? 50 : 20, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 },
+
+  // Stock Badges & Buttons
+  outOfStockPillDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  outOfStockPillDetailText: {
+    color: '#DC2626',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  inStockPillDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  inStockPillDetailText: {
+    color: '#15803D',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  outOfStockBottomBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  outOfStockBottomText: {
+    color: '#64748B',
+    fontSize: 14,
+    fontWeight: '800',
+  },
 });

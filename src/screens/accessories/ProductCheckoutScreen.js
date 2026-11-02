@@ -206,6 +206,75 @@ export default function ProductCheckoutScreen({ navigation, route }) {
     setCouponCode('');
   };
 
+  // 🚀 STOCK VALIDATION BEFORE ORDERING
+  const validateStockAvailability = async () => {
+    for (const item of cartItems) {
+      const pId = item.productId || item.id;
+      if (!pId) continue;
+      const qtyOrdered = Number(item.quantity) || 1;
+      const collectionName = item.condition === 'Refurbished' ? 'refurbished_products' : 'new_products';
+
+      try {
+        const prodRef = doc(db, collectionName, pId);
+        const prodSnap = await getDoc(prodRef);
+        if (prodSnap.exists()) {
+          const prodData = prodSnap.data();
+          const currentStock = typeof prodData.stock === 'number' 
+            ? prodData.stock 
+            : (typeof prodData.quantity === 'number' ? prodData.quantity : 10);
+
+          if (currentStock <= 0 || prodData.inStock === false) {
+            Alert.alert(
+              "Item Out of Stock", 
+              `"${item.name || 'An item'}" in your cart is currently out of stock. Please remove it from cart to proceed.`
+            );
+            return false;
+          }
+          if (currentStock < qtyOrdered) {
+            Alert.alert(
+              "Insufficient Stock", 
+              `Only ${currentStock} units available for "${item.name}". Please adjust quantity in cart.`
+            );
+            return false;
+          }
+        }
+      } catch (err) {
+        console.error("Stock check error:", err);
+      }
+    }
+    return true;
+  };
+
+  // 🚀 AUTO-DEDUCT STOCK ON COMPLETED ORDER
+  const deductOrderedStock = async (items) => {
+    for (const item of items) {
+      const pId = item.productId || item.id;
+      if (!pId) continue;
+      const qtyOrdered = Number(item.quantity) || 1;
+      const collectionName = item.condition === 'Refurbished' ? 'refurbished_products' : 'new_products';
+
+      try {
+        const prodRef = doc(db, collectionName, pId);
+        const prodSnap = await getDoc(prodRef);
+        if (prodSnap.exists()) {
+          const prodData = prodSnap.data();
+          const currentStock = typeof prodData.stock === 'number' 
+            ? prodData.stock 
+            : (typeof prodData.quantity === 'number' ? prodData.quantity : 10);
+          
+          const newStock = Math.max(0, currentStock - qtyOrdered);
+          await updateDoc(prodRef, {
+            stock: newStock,
+            quantity: newStock,
+            inStock: newStock > 0,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to deduct stock for product:", pId, err);
+      }
+    }
+  };
+
   // 1️⃣ DRAFT ORDER CREATION
   const createDraftOrder = async (payMode, initialStatus) => {
     const orderId = `ORD-P${Math.floor(100000 + Math.random() * 900000)}`;
@@ -221,6 +290,9 @@ export default function ProductCheckoutScreen({ navigation, route }) {
       paymentMethod: paymentMethod,
       paymentMode: payMode,
       totalAmount: totalAmount,
+      itemsSubtotal: initialTotalAmount,
+      deliveryFee: deliveryFee,
+      deliveryCharge: deliveryFee,
       transactionId: 'PENDING',
       status: initialStatus, 
       orderType: 'Ecommerce', 
@@ -247,6 +319,9 @@ export default function ProductCheckoutScreen({ navigation, route }) {
         updatedAt: serverTimestamp()
       });
       
+      // Deduct purchased stock from inventory
+      await deductOrderedStock(cartItems);
+
       // If a reward coupon was used, mark it as inactive (Used)
       if (appliedCoupon && appliedCoupon.type === 'reward' && appliedCoupon.docId) {
         await updateDoc(doc(db, 'coupons', appliedCoupon.docId), {
@@ -280,10 +355,20 @@ export default function ProductCheckoutScreen({ navigation, route }) {
 
     setIsPlacingOrder(true);
 
+    // 🚀 Check if items are in stock before processing payment
+    const hasStock = await validateStockAvailability();
+    if (!hasStock) {
+      setIsPlacingOrder(false);
+      return;
+    }
+
     if (paymentMethod === 'COD') {
       try {
         const draft = await createDraftOrder('Offline', 'Pending');
         
+        // Deduct purchased stock from inventory
+        await deductOrderedStock(cartItems);
+
         // Mark reward coupon as inactive (Used)
         if (appliedCoupon && appliedCoupon.type === 'reward' && appliedCoupon.docId) {
           await updateDoc(doc(db, 'coupons', appliedCoupon.docId), {
@@ -313,6 +398,9 @@ export default function ProductCheckoutScreen({ navigation, route }) {
           // 1. Create Order
           const { docId, orderId } = await createDraftOrder('Wallet', 'Pending');
           
+          // Deduct purchased stock from inventory
+          await deductOrderedStock(cartItems);
+
           // 2. Deduct from wallet & add transaction
           const userRef = doc(db, 'users', user.uid);
           await updateDoc(userRef, {

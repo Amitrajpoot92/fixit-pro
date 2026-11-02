@@ -28,6 +28,28 @@ export default function ServiceSelectionScreen({ navigation, route }) {
   const [vendors, setVendors] = useState([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
 
+  // 🔒 Real-time Map of Active Technicians
+  const [activeTechnicians, setActiveTechnicians] = useState({});
+
+  useEffect(() => {
+    // Listen to registered & active technicians in real-time
+    const unsubTechs = onSnapshot(collection(db, 'technicians'), (snap) => {
+      const map = {};
+      snap.docs.forEach(doc => {
+        const data = doc.data();
+        // 🔒 Only keep technicians that are currently registered and NOT Inactive/Suspended
+        if (data.status !== 'Inactive' && data.status !== 'Suspended') {
+          map[doc.id] = { id: doc.id, ...data };
+        }
+      });
+      setActiveTechnicians(map);
+    }, (err) => {
+      console.log("Error listening to technicians:", err);
+    });
+
+    return () => unsubTechs();
+  }, []);
+
   useEffect(() => {
     if (!selectedModelId) {
       setLoading(false);
@@ -66,8 +88,21 @@ export default function ServiceSelectionScreen({ navigation, route }) {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedVendors = [];
       snapshot.forEach((doc) => {
-        fetchedVendors.push({ id: doc.id, ...doc.data() });
+        const rateData = doc.data();
+        const techInfo = activeTechnicians[rateData.technicianId];
+
+        // 🔒 CRITICAL SECURITY CHECK:
+        // Only include rate if technician actually exists in active technicians collection!
+        // Deleted or Inactive technicians will NEVER show their pricing!
+        if (techInfo) {
+          fetchedVendors.push({ 
+            id: doc.id, 
+            ...rateData,
+            technicianName: techInfo.name || techInfo.shopName || rateData.technicianName || 'Expert Technician'
+          });
+        }
       });
+
       setVendors(fetchedVendors);
       setLoadingVendors(false);
     }, (error) => {
@@ -84,8 +119,8 @@ export default function ServiceSelectionScreen({ navigation, route }) {
     const cartItem = {
       serviceId: activeService.id,
       serviceTitle: activeService.title,
-      vendorId: vendor.technicianId,
-      vendorName: vendor.technicianName || 'Expert Technician',
+      vendorId: vendor.technicianId || null,
+      vendorName: vendor.technicianName || 'FixitPro Verified Partner',
       price: Number(vendor.offeringPrice)
     };
 
@@ -107,8 +142,8 @@ export default function ServiceSelectionScreen({ navigation, route }) {
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
-    const primaryTechId = cart[0].vendorId;
-    const primaryTechName = cart[0].vendorName;
+    const primaryTechId = cart[0].vendorId || null;
+    const primaryTechName = cart[0].vendorName || 'FixitPro Partner';
 
     navigation.navigate('Checkout', {
       brandName: selectedBrandName,
@@ -137,7 +172,7 @@ export default function ServiceSelectionScreen({ navigation, route }) {
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={styles.deviceName}>{selectedBrandName} {selectedModelName}</Text>
         <Text style={styles.subHeader}>Select issues to compare vendor prices:</Text>
-        
+
         {loading ? (
           <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 50 }} />
         ) : (
@@ -145,15 +180,14 @@ export default function ServiceSelectionScreen({ navigation, route }) {
             {services.map((item) => {
               const cartItem = cart.find(c => c.serviceId === item.id);
               const isSelected = !!cartItem;
+
               return (
                 <TouchableOpacity 
                   key={item.id} 
                   style={[styles.serviceCard, isSelected && styles.activeCard]}
                   onPress={() => handleServiceClick(item)}
-                  activeOpacity={0.7}
                 >
-                  <View style={[styles.iconBox, { backgroundColor: isSelected ? '#EFF6FF' : '#F8FAFC' }]}>
-                    {/* 🚀 Image Rendering Here */}
+                  <View style={[styles.iconBox, isSelected && { backgroundColor: '#EFF6FF', borderColor: '#2563EB' }]}>
                     {item.image ? (
                       <Image source={{ uri: item.image }} style={styles.serviceImage} resizeMode="contain" />
                     ) : (
@@ -181,7 +215,7 @@ export default function ServiceSelectionScreen({ navigation, route }) {
         )}
       </ScrollView>
 
-      {/* VENDOR POPUP (Same as before) */}
+      {/* VENDOR POPUP */}
       {showVendorPopup && (
         <View style={styles.popupOverlay}>
           <View style={styles.popupContent}>
@@ -195,9 +229,40 @@ export default function ServiceSelectionScreen({ navigation, route }) {
             {loadingVendors ? (
               <ActivityIndicator size="large" color="#2563EB" style={{ marginVertical: 40 }} />
             ) : vendors.length === 0 ? (
-              <View style={styles.emptyVendors}>
-                <Text style={styles.emptyVendorText}>No technicians available for this service right now.</Text>
-              </View>
+              // 🚀 If no custom technician rates are active, show Company Base Price fallback if available
+              activeService?.basePrice && Number(activeService.basePrice) > 0 ? (
+                <View style={{ paddingBottom: 20 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B', marginBottom: 12 }}>
+                    Standard FixitPro Verified Price:
+                  </Text>
+                  <View style={styles.vendorCard}>
+                    <View style={styles.vendorLeft}>
+                      <Text style={styles.vendorName}>FixitPro Standard Service</Text>
+                      <View style={styles.ratingRow}>
+                        <MaterialIcons name="verified" size={14} color="#10B981" />
+                        <Text style={styles.vendorRating}>Company Verified Standard Rate</Text>
+                      </View>
+                    </View>
+                    <View style={styles.vendorRight}>
+                      <Text style={styles.vendorPrice}>₹{activeService.basePrice}</Text>
+                      <TouchableOpacity 
+                        style={styles.selectVendorBtn} 
+                        onPress={() => selectVendorForService({
+                          technicianId: null,
+                          technicianName: 'FixitPro Verified Partner',
+                          offeringPrice: activeService.basePrice
+                        })}
+                      >
+                        <Text style={styles.selectVendorText}>Select</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.emptyVendors}>
+                  <Text style={styles.emptyVendorText}>No technicians available for this service right now.</Text>
+                </View>
+              )
             ) : (
               <FlatList 
                 data={vendors}

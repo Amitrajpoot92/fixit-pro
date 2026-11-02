@@ -110,7 +110,9 @@ export default function CheckoutScreen({ navigation, route }) {
       scheduleTime: mode === 'self' ? null : selectedTime,
       serviceAddress: mode === 'self' ? null : selectedAddress,
       selectedTechId,    // Forwarding dynamic ID
-      selectedTechName   // Forwarding dynamic Name
+      selectedTechName,  // Forwarding dynamic Name
+      pickupFee: getFee(),
+      deliveryCharge: getFee(),
     });
   };
 

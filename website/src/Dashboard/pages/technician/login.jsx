@@ -4,7 +4,7 @@ import { Lock, Mail, Wrench, ArrowLeft, Loader2 } from 'lucide-react';
 // 🚀 Firebase & Firestore Imports
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../../../firebase'; // Sahi path
+import { auth, db } from '../../../firebase';
 
 export default function TechLogin() {
   const navigate = useNavigate();
@@ -23,18 +23,25 @@ export default function TechLogin() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Ab Firestore se 'technicians' collection mein check karo (YAHI BUG THA!)
+      // 2. Ab Firestore se 'technicians' collection mein check karo
       const techDocRef = doc(db, 'technicians', user.uid);
       const techDoc = await getDoc(techDocRef);
 
       if (techDoc.exists()) {
-        // 🟢 Agar sach mein technician hai, toh seedha Dashboard jao
+        const techData = techDoc.data();
+        if (techData.status === 'Inactive' || techData.status === 'Suspended') {
+          await signOut(auth);
+          setError("Your technician account is deactivated or suspended. Please contact the administrator.");
+          setLoading(false);
+          return;
+        }
+        // 🟢 Agar sach mein active technician hai, toh seedha Dashboard jao
         console.log("Technician Verified:", user.email);
         navigate('/technician/dashboard'); 
       } else {
-        // 🔴 Agar admin ya koi aur hai, toh logout karo aur error do
+        // 🔴 Agar delete ho chuka hai ya registered nahi hai
         await signOut(auth);
-        setError("Access Denied! You are not registered as a Technician.");
+        setError("Access Denied! This technician account has been deleted or does not exist.");
       }
 
     } catch (err) {

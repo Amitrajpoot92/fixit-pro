@@ -15,7 +15,8 @@ import AppNavigator from './src/navigation/AppNavigator';
 // 🚀 1. Mobile screen ki warnings chup karne ke liye
 LogBox.ignoreLogs([
   'props.pointerEvents is deprecated',
-  '"shadow*" style props are deprecated'
+  '"shadow*" style props are deprecated',
+  'SafeAreaView has been deprecated'
 ]);
 
 // 🚀 2. Web Browser ke console ka kachra saaf karne ke liye (Master Trick)
@@ -24,7 +25,7 @@ if (Platform.OS === 'web') {
   console.warn = (...args) => {
     if (
       typeof args[0] === 'string' && 
-      (args[0].includes('pointerEvents is deprecated') || args[0].includes('"shadow*" style props are deprecated'))
+      (args[0].includes('pointerEvents is deprecated') || args[0].includes('"shadow*" style props are deprecated') || args[0].includes('SafeAreaView has been deprecated'))
     ) {
       return; // Inko console mein mat dikhao
     }

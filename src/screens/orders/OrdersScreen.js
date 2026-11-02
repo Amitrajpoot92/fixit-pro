@@ -1,7 +1,8 @@
 // src/screens/orders/OrdersScreen.js
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useRef, useState, useEffect } from 'react';
 import { 
-  View, Text, StyleSheet, SafeAreaView, FlatList, 
+  View, Text, StyleSheet, FlatList, 
   TouchableOpacity, Platform, StatusBar, ActivityIndicator 
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -77,7 +78,7 @@ export default function OrdersScreen() {
   const filteredData = getFilteredData();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
 
       <View style={styles.header}>
@@ -212,7 +213,7 @@ export default function OrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
+  container: { flex: 1, backgroundColor: '#F8FAFC',},
   header: { padding: 20 },
   headerTitle: { fontSize: 26, fontWeight: '900', color: '#0F172A' },
   

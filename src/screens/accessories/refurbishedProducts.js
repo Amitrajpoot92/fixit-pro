@@ -5,7 +5,7 @@ import { colors } from '../../theme/colors';
 
 // 🔥 Firebase Imports
 import { collection, query, onSnapshot } from 'firebase/firestore';
-import { db } from '../../services/firebaseConfig'; // Apna correct path check kar lena
+import { db } from '../../services/firebaseConfig';
 
 const shadowStyle = Platform.select({
   ios: { shadowColor: '#94A3B8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8 },
@@ -32,6 +32,7 @@ export default function RefurbishedProducts({ navigation }) {
   const renderProductCard = ({ item }) => {
     const hasDiscount = item.originalPrice && item.originalPrice > item.price;
     const discountPercent = hasDiscount ? Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100) : 0;
+    const isOutOfStock = (item.stock !== undefined && Number(item.stock) <= 0) || item.inStock === false;
 
     return (
       <TouchableOpacity 
@@ -42,13 +43,23 @@ export default function RefurbishedProducts({ navigation }) {
           <View style={styles.conditionBadge}>
             <Text style={styles.conditionText}>REFURBISHED</Text>
           </View>
-          {hasDiscount && (
-            <View style={styles.discountBadge}><Text style={styles.discountText}>{discountPercent}% OFF</Text></View>
-          )}
+          {isOutOfStock ? (
+            <View style={styles.outOfStockBadge}>
+              <Text style={styles.outOfStockBadgeText}>OUT OF STOCK</Text>
+            </View>
+          ) : hasDiscount ? (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>{discountPercent}% OFF</Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.imgContainer}>
-          <Image source={{ uri: item.image }} style={styles.prodImage} resizeMode="contain" />
+          <Image 
+            source={{ uri: item.image }} 
+            style={[styles.prodImage, isOutOfStock && { opacity: 0.45 }]} 
+            resizeMode="contain" 
+          />
         </View>
 
         <Text style={styles.prodName} numberOfLines={1}>{item.name}</Text>
@@ -59,8 +70,11 @@ export default function RefurbishedProducts({ navigation }) {
             <Text style={styles.priceText}>₹{item.price}</Text>
             {hasDiscount && <Text style={styles.oldPriceText}>₹{item.originalPrice}</Text>}
           </View>
-          <TouchableOpacity style={styles.addCartBtn}>
-            <MaterialIcons name="add-shopping-cart" size={16} color="#FFF" />
+          <TouchableOpacity 
+            style={[styles.addCartBtn, isOutOfStock && styles.disabledCartBtn]}
+            onPress={() => navigation.navigate('ProductDetail', { product: item })}
+          >
+            <MaterialIcons name={isOutOfStock ? "remove-shopping-cart" : "add-shopping-cart"} size={16} color="#FFF" />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -98,6 +112,8 @@ const styles = StyleSheet.create({
   conditionText: { color: '#B45309', fontSize: 8, fontWeight: '900' },
   discountBadge: { backgroundColor: '#D1FAE5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   discountText: { color: '#065F46', fontSize: 8, fontWeight: '900' },
+  outOfStockBadge: { backgroundColor: '#FEE2E2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  outOfStockBadgeText: { color: '#DC2626', fontSize: 8, fontWeight: '900' },
   imgContainer: { height: 100, justifyContent: 'center', alignItems: 'center', marginVertical: 10 },
   prodImage: { width: '80%', height: '100%' },
   prodName: { fontSize: 13, fontWeight: '800', color: '#0F172A' },
@@ -106,6 +122,7 @@ const styles = StyleSheet.create({
   priceText: { fontSize: 15, fontWeight: '900', color: '#0F172A' },
   oldPriceText: { fontSize: 11, color: '#94A3B8', textDecorationLine: 'line-through', marginTop: 1 },
   addCartBtn: { width: 28, height: 28, borderRadius: 8, backgroundColor: colors.link, justifyContent: 'center', alignItems: 'center' },
+  disabledCartBtn: { backgroundColor: '#94A3B8' },
   emptyContainer: { alignItems: 'center', marginTop: 60 },
   emptyTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A', marginTop: 12 },
 });

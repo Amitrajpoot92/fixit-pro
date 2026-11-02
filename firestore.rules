@@ -1,0 +1,166 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================
+    // 🔐 HELPER FUNCTIONS
+    // ==========================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isOperator() {
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'operator') ||
+        (exists(/databases/$(database)/documents/operators/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/operators/$(request.auth.uid)).data.status != 'Inactive')
+      );
+    }
+
+    function isTechnician() {
+      return isAuthenticated() && (
+        exists(/databases/$(database)/documents/technicians/$(request.auth.uid)) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'technician')
+      );
+    }
+
+    // ==========================================
+    // 👥 USERS & ALL SUBCOLLECTIONS (Cart, Addresses, Wallet)
+    // ==========================================
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin() || isOperator();
+      allow create: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+
+      // Recursive match for all subcollections (cart, addresses, transactions, etc.)
+      match /{allSubcollections=**} {
+        allow read, write: if isOwner(userId) || isAdmin() || isOperator();
+      }
+    }
+
+    // ==========================================
+    // 🛡️ OPERATORS MANAGEMENT (ADMIN ONLY)
+    // ==========================================
+    match /operators/{operatorId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == operatorId);
+      allow write: if isAdmin();
+    }
+
+    // ==========================================
+    // 🔧 TECHNICIANS & PAYOUTS
+    // ==========================================
+    match /technicians/{techId} {
+      allow read: if true; // Public read so customers can view assigned tech info on tracking
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == techId);
+      allow delete: if isAdmin();
+    }
+
+    match /technician_rates/{rateId} {
+      allow read: if isAuthenticated() || true;
+      allow write: if isAdmin();
+    }
+
+    match /payout_requests/{payoutId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.technicianId == request.auth.uid);
+      allow create: if isAuthenticated() && isTechnician();
+      allow update, delete: if isAdmin();
+    }
+
+    // ==========================================
+    // 📦 4 OPERATIONAL SECTIONS (FULL ACCESS TO OPERATOR & ADMIN)
+    // ==========================================
+    
+    // 1. LIVE BOOKINGS
+    match /bookings/{bookingId} {
+      allow read: if true; // Allows orderId tracking queries and live status updates
+      allow create: if isAuthenticated() || true;
+      allow update: if isAdmin() || isOperator() || isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // 2. PRODUCT ORDERS
+    match /product_orders/{orderId} {
+      allow read: if true; // Allows orderId tracking queries
+      allow create: if isAuthenticated() || true;
+      allow update: if isAdmin() || isOperator() || isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // 3. PRODUCT LISTING & INVENTORY
+    match /new_products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin() || isOperator() || isAuthenticated();
+    }
+
+    match /refurbished_products/{productId} {
+      allow read: if true;
+      allow write: if isAdmin() || isOperator() || isAuthenticated();
+    }
+
+    match /product_categories/{catId} {
+      allow read: if true;
+      allow write: if isAdmin() || isOperator();
+    }
+
+    // 4. MASTER CATALOGUE
+    match /master_brands/{brandId} {
+      allow read: if true;
+      allow write: if isAdmin() || isOperator();
+    }
+
+    match /master_models/{modelId} {
+      allow read: if true;
+      allow write: if isAdmin() || isOperator();
+    }
+
+    match /master_services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin() || isOperator();
+    }
+
+    match /master_global_services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin() || isOperator();
+    }
+
+    // ==========================================
+    // ⚙️ SETTINGS, BANNERS, CONFIGS & COUPONS
+    // (App reads publicly, but ONLY Super Admin can write/modify)
+    // ==========================================
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /app_settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /admin_settings/{docId} {
+      allow read: if true; // Support phone, email, delivery zones for app
+      allow write: if isAdmin();
+    }
+
+    match /settings/{docId} {
+      allow read: if true; // Referral config, delivery rates for app
+      allow write: if isAdmin();
+    }
+  }
+}

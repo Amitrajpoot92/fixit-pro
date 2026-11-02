@@ -1,19 +1,18 @@
 // src/components/home/Footer.jsx
 import React from 'react';
 import { Mail, Globe, MessageSquare, ArrowUpRight, Lock, Wrench, ShieldCheck } from 'lucide-react';
-// 🚀 ADDED: React Router DOM se Link import kiya gaya hai
 import { Link } from 'react-router-dom'; 
 
 export default function Footer() {
   return (
     <footer className="bg-[#050B14] relative overflow-hidden border-t border-white/10 pt-12 pb-6">
       
-      {/* 🌌 Subtle Bottom Ambient Glow (Scaled down to save space) */}
+      {/* 🌌 Subtle Bottom Ambient Glow */}
       <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[400px] h-[150px] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none z-0"></div>
 
       <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 relative z-10">
         
-        {/* 🚀 Main Footer Grid (Reduced gaps) */}
+        {/* 🚀 Main Footer Grid */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-10 lg:gap-8 mb-10">
           
           {/* 📝 Brand Column */}
@@ -30,7 +29,6 @@ export default function Footer() {
               India's #1 premium doorstep device repair service. We bring your tech back to life, securely and instantly.
             </p>
 
-            {/* Smaller, compact social icons */}
             <div className="flex items-center gap-3">
               {[Mail, Globe, MessageSquare].map((Icon, index) => (
                 <a key={index} href="#" className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white hover:border-blue-500 transition-all duration-300">
@@ -77,22 +75,20 @@ export default function Footer() {
               </ul>
             </div>
 
-            {/* 🛡️ Portals (Admin & Technician) - Slimmer Version */}
+            {/* 🛡️ Portals (Admin/Operator & Technician) */}
             <div className="flex flex-col items-start col-span-2 sm:col-span-1 mt-4 sm:mt-0">
               <h4 className="text-white font-extrabold mb-4 tracking-wide uppercase text-[10px] opacity-50">Staff Access</h4>
               <ul className="space-y-2 w-full max-w-[200px]">
                 
                 <li>
-                  {/* 🚀 CHANGED: Normal <a> tag ki jagah React Router ka <Link> use kiya hai */}
                   <Link to="/admin" className="group flex items-center gap-2 p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-300">
                      <Lock className="w-3.5 h-3.5 text-purple-400" />
-                     <span className="text-slate-300 text-xs font-bold group-hover:text-white transition-colors">Admin Portal</span>
+                     <span className="text-slate-300 text-xs font-bold group-hover:text-white transition-colors">Admin / Operator</span>
                      <ArrowUpRight className="w-3 h-3 text-slate-500 group-hover:text-white ml-auto transition-colors" />
                   </Link>
                 </li>
                 
                 <li>
-                  {/* 🚀 CHANGED: Normal <a> tag ki jagah React Router ka <Link> use kiya hai */}
                   <Link to="/technician" className="group flex items-center gap-2 p-2 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/[0.05] hover:border-white/10 transition-all duration-300">
                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                      <span className="text-slate-300 text-xs font-bold group-hover:text-white transition-colors">Tech Portal</span>
@@ -106,7 +102,7 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* 🏁 Bottom Bar (Tighter spacing) */}
+        {/* 🏁 Bottom Bar */}
         <div className="pt-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-3">
           <p className="text-slate-500 text-[11px] font-medium text-center md:text-left">
             &copy; {new Date().getFullYear()} FixitPro Inc. All rights reserved.

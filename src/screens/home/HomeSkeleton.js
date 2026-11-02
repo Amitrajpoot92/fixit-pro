@@ -38,7 +38,7 @@ const SkeletonItem = ({ width, height, borderRadius, style }) => {
 
 export default function HomeSkeleton() {
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.background} translucent={false} />
       
       {/* HEADER SKELETON */}
@@ -105,9 +105,7 @@ export default function HomeSkeleton() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
+    backgroundColor: colors.background,},
   skeleton: {
     backgroundColor: '#E2E8F0',
   },
@@ -115,8 +113,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
+    paddingHorizontal: 20, paddingTop: 6, paddingBottom: 10, borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
   headerLeft: {

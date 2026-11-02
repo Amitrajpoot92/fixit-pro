@@ -148,16 +148,45 @@ export default function WalletScreen({ navigation }) {
     }
   };
 
+  // Helper to safely format transaction date (handles Firestore Timestamp, Date, seconds, ISO string)
+  const formatTransactionDate = (createdAt) => {
+    if (!createdAt) return 'Just now';
+    try {
+      let dateObj;
+      if (typeof createdAt?.toDate === 'function') {
+        dateObj = createdAt.toDate();
+      } else if (createdAt?.seconds) {
+        dateObj = new Date(createdAt.seconds * 1000);
+      } else if (createdAt instanceof Date) {
+        dateObj = createdAt;
+      } else {
+        dateObj = new Date(createdAt);
+      }
+
+      if (isNaN(dateObj.getTime())) {
+        return 'Recently';
+      }
+
+      const datePart = dateObj.toLocaleDateString('en-IN', { 
+        day: 'numeric', 
+        month: 'short', 
+        year: 'numeric' 
+      });
+      const timePart = dateObj.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      return `${datePart}, ${timePart}`;
+    } catch (e) {
+      return 'Recently';
+    }
+  };
+
   // UI Component for individual transaction
   const renderTransaction = ({ item }) => {
     const isCredit = item.type === 'credit';
-    
-    // Formatting date safely
-    let dateStr = 'Unknown Date';
-    if (item.createdAt) {
-      const dateObj = new Date(item.createdAt);
-      dateStr = dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-    }
+    const dateStr = formatTransactionDate(item.createdAt);
 
     return (
       <View style={styles.txCard}>
@@ -180,7 +209,7 @@ export default function WalletScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" translucent={false} />
       
       {/* 🔹 Header */}
@@ -270,8 +299,7 @@ const styles = StyleSheet.create({
   container: { 
     flex: 1, 
     backgroundColor: '#F8FAFC',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 
-  },
+    },
   header: { flexDirection: 'row', padding: 20, alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
   

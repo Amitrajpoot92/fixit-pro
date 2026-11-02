@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react';
+import { Lock, Mail, ShieldCheck, ArrowLeft, Loader2, UserCheck } from 'lucide-react';
 // 🚀 Firebase & Firestore Imports
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -19,22 +19,48 @@ export default function AdminLogin() {
     setError('');
 
     try {
-      // 1. Pehle Auth se check karo password sahi hai ya nahi
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // 1. Authenticate with Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
       const user = userCredential.user;
 
-      // 2. Ab Firestore se is user ka role fetch karo
+      // 2. Fetch role from Firestore
+      let userRole = null;
+      let userStatus = 'Active';
+
       const userDocRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
-      if (userDoc.exists() && userDoc.data().role === 'admin') {
-        // 🟢 Agar user ka role 'admin' hai, toh seedha Dashboard bhej do
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        userRole = data.role;
+        if (data.status) userStatus = data.status;
+      } else {
+        // Fallback check in operators collection
+        const opDoc = await getDoc(doc(db, 'operators', user.uid));
+        if (opDoc.exists()) {
+          userRole = 'operator';
+          if (opDoc.data().status) userStatus = opDoc.data().status;
+        }
+      }
+
+      // Check Inactive status
+      if (userStatus === 'Inactive' || userStatus === 'Suspended') {
+        await signOut(auth);
+        setError("Your account has been deactivated or suspended. Please contact the administrator.");
+        setLoading(false);
+        return;
+      }
+
+      // 3. Route according to role
+      if (userRole === 'admin') {
         console.log("Admin Verified:", user.email);
         navigate('/admin/dashboard'); 
+      } else if (userRole === 'operator') {
+        console.log("Operator Verified:", user.email);
+        navigate('/admin/bookings'); // 🚀 Operators land on Live Bookings
       } else {
-        // 🔴 Agar role admin nahi hai (customer ya tech hai), toh instantly logout karo
         await signOut(auth);
-        setError("Access Denied! You are not authorized as an Admin.");
+        setError("Access Denied! You are not authorized as an Admin or Operator.");
       }
 
     } catch (err) {
@@ -59,15 +85,15 @@ export default function AdminLogin() {
           <div className="inline-flex items-center justify-center bg-purple-500/20 p-3 rounded-2xl mb-4 border border-purple-500/30 shadow-[0_0_20px_rgba(168,85,247,0.3)]">
              <ShieldCheck className="w-8 h-8 text-purple-400" />
           </div>
-          <h2 className="text-3xl font-black text-white mb-2 tracking-tight">Admin Portal</h2>
-          <p className="text-slate-400 text-sm font-medium">Master control center access.</p>
+          <h2 className="text-3xl font-black text-white mb-2 tracking-tight">Admin & Operator</h2>
+          <p className="text-slate-400 text-sm font-medium">Operations & Master Control Center access.</p>
         </div>
 
         {error && <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 text-red-400 text-sm font-medium rounded-xl text-center">{error}</div>}
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 pl-1">Admin Email</label>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2 pl-1">Email / Staff Username</label>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Mail className="h-5 w-5 text-slate-500 group-focus-within:text-purple-400 transition-colors" />
@@ -78,7 +104,7 @@ export default function AdminLogin() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-slate-900/50 border border-white/10 rounded-2xl py-3.5 pl-11 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all font-medium"
-                placeholder="admin@fixitpro.com"
+                placeholder="admin@fixitpro.com or operator@fixitpro.com"
               />
             </div>
           </div>
